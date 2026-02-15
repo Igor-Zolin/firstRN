@@ -1,58 +1,115 @@
 import { Link } from 'expo-router';
-import React, { useState } from 'react';
-import { StyleSheet, TextInput } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, TextInput, TouchableOpacity, Image } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Button } from '@react-navigation/elements';
+// import { Image } from 'expo-image';
+
+// import * as Progress from 'react-native-progress';
+
 
 export default function ModalStore() {
-  interface User {
-    readonly id: number,
-    name: string,
-    age: number,
-    color: string,
+  const [energy, setEnergy] = useState(0);
+  const [multiply, setMultiply] = useState(1);
+  const [maxEnergy, setMaxEnergy] = useState(100);
+  const fillStyle = { width: `${energy}%` };
+  const [coin, setcoin] = useState(0);
+  const [multiplyCoins, setMultiplyCoins] = useState(1)
+
+  // Reset progress when the modal is opened
+  useEffect(() => {
+    setEnergy(0);
+    setMultiply(1);
+    setcoin(0);
+    setMultiplyCoins(1)
+    setMaxEnergy(100)
+  }, []);
+
+  // Reset button
+  const resetProgress = () => {
+    setEnergy(0);
+    setMultiply(1);
+    setcoin(0);
+    setMultiplyCoins(1)
+    setMaxEnergy(100)
+  };
+  
+  // Множители
+  const multiplyPlus = () => {
+      setMultiply(prev => prev + 1);
+  };
+  const multiplyMulti = () => {
+    setMultiply(prev => prev * 2);
   }
-  const user1: User = {
-    id: 123,
-    name: 'igor',
-    age: 18,
-    color: 'red',
+
+  // Обработчик нажатия на кнопку
+  const handleValueChange = () => {
+    if (energy < maxEnergy) {
+      setEnergy(prevCount => prevCount + multiply);
+    }
+  };
+
+  useEffect(() => {
+    if (energy >= maxEnergy) {
+      setEnergy(maxEnergy);
+    }
+    const timerId = setInterval(() => {
+      setEnergy((prevCount) => {
+        if (prevCount <= 1) {
+          clearInterval(timerId);
+          return 0;
+        }
+        return prevCount - 1;
+      });
+    }, 2000);
+  
+    return () => clearTimeout(timerId);
+  }, [energy]);
+
+  useEffect(() => {
+    if (energy > 0) {
+      const timerId = setInterval(() => {
+        setcoin(prev => prev + multiplyCoins);
+      }, 1000);
+    return () => clearInterval(timerId);
+      }
+  });
+
+  const maxEnergyPlus = () => {
+    setMaxEnergy(prev => prev + 50);
   }
-  // const user2: User = () = {
-  //   const [formData, setFormData]= useState({
-  //     id: '',
-  //     name: '',
-  //     age: Number,
-  //     color: '',
-  //   })
-  // }
-  const [name, setName] = useState('');
-  const [age, setAge] = useState('');
-  const [color, setColor] = useState('');
-  const handleSubmit = () => {
-    console.log('Email:', name);
-    console.log('Password:', age);
-    console.log('Password:', color);
-    // Perform further actions like API calls
+
+  const coinsPlus = () => {
+      setMultiplyCoins(prev => prev + 5);
   };
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">Store Modal</ThemedText>
-      <Link href="/test" dismissTo style={styles.link}>
-        <ThemedText type="link">
-          Go to test page
-        </ThemedText>
+      <ThemedText type="title">This is a modal</ThemedText>
+      <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, fillStyle]} aria-label="progress-fill" />
+        </View>
+        <ThemedText>{ energy }⚡️</ThemedText>
+      <TouchableOpacity onPress={handleValueChange}>
+        <Image
+          source={require('@/assets/images/Shao.png')}
+          style={{ width: 350, height: 350 }}
+          />
+      </TouchableOpacity>
+      <View>
+        <Button onPress={multiplyPlus}>+1</Button>
+        <Button onPress={multiplyMulti}>*2</Button>
+      </View>
+      <ThemedText>{ energy }</ThemedText>
+      <ThemedText>{ multiply }</ThemedText>
+      <Link href="/" dismissTo style={styles.link}>
+        <ThemedText type="link">Go to home screen</ThemedText>
       </Link>
-      <ThemedView>
-        <TextInput value={name} placeholder='Name' onChangeText={setName}/>
-        <TextInput value={age} placeholder='Age' onChangeText={setAge}/>
-        <TextInput value={color} placeholder='Color' onChangeText={setColor}/>
-      </ThemedView>
-      <Button title='submit' onPress={handleSubmit}/>
-      <ThemedText>{ user1.name }</ThemedText>
-      <ThemedText>{ user1.age }</ThemedText>
-      <ThemedText>{ user1.color }</ThemedText>
+      <Button onPress={resetProgress}>Reset Progress</Button>
+      <ThemedText>{ coin }</ThemedText>
+      <Button onPress={maxEnergyPlus}>Max Energy +50</Button>
+      <Button onPress={coinsPlus}>Coins +5</Button>
     </ThemedView>
   );
 }
@@ -67,5 +124,19 @@ const styles = StyleSheet.create({
   link: {
     marginTop: 15,
     paddingVertical: 15,
+  },
+  progressTrack : {
+    width: '100%',
+    height: 20,
+    backgroundColor: '#00000000',
+    borderColor: '#202020',
+    borderWidth: 2,
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#f14028',
   },
 });

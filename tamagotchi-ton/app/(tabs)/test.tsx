@@ -8,6 +8,7 @@ import { Image } from 'expo-image';
 
 export default function testPage() {
   const [pressCount, setPressCount] = useState(0);
+  
 
   const handleValueChange = () => {
     setPressCount(prevCount => prevCount + 1);

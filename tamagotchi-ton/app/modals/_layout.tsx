@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import React from "react";
 
 export default function ModalsLayout() {
   const colorScheme = useColorScheme();
