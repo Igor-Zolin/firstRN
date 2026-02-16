@@ -25,6 +25,7 @@ const NFT = {
   gold: '#FBBF24',
   goldDim: 'rgba(251, 191, 36, 0.7)',
   energy: '#22D3EE',
+  red: '#f33f32',
   text: '#E2E8F0',
   textMuted: '#94A3B8',
   glow: 'rgba(0, 212, 255, 0.35)',
@@ -37,16 +38,19 @@ export default function ModalStore() {
   const [multiply, setMultiply] = useState(1);
   
   const [beanz, setBeanz] = useState(0);
+  const [beanzMining, setBeanzMining] = useState(0);
   
   const [coin, setCoin] = useState(0);
   const [multiplyCoins, setMultiplyCoins] = useState(1);
 
   const fillWidth = Math.min(100, (energy / maxEnergy) * 100);
 
+  // Reset all progress
   useEffect(() => {
     setEnergy(0);
     setMultiply(1);
     setBeanz(0);
+    setBeanzMining(0);
     setCoin(0);
     setMultiplyCoins(1);
     setMaxEnergy(100);
@@ -56,9 +60,28 @@ export default function ModalStore() {
     setEnergy(0);
     setMultiply(1);
     setBeanz(0);
+    setBeanzMining(0);
     setCoin(0);
     setMultiplyCoins(1);
     setMaxEnergy(100);
+  };
+
+  useEffect(() => {
+    if (beanzMining <= 0) return;
+
+    const beanzTimerId = setInterval(() => {
+      setBeanz((prev) => prev + beanzMining);
+    }, 1500);
+    return () => clearInterval(beanzTimerId);
+  }, [beanzMining]);
+
+  const beanzMiningPlus = () => {
+    if (coin >= 20) {
+      setCoin((prev) => prev - 20);
+      setBeanzMining((prev) => prev + 1);
+    } else {
+      alert('Недостаточно монет для улучшения!');
+    }
   };
 
   const multiplyPlus = () => {
@@ -91,7 +114,7 @@ export default function ModalStore() {
 
   useEffect(() => {
     if (energy <= 0) return;
-    const timerId = setInterval(() => setCoin((prev) => prev + multiplyCoins), 1000);
+    const timerId = setInterval(() => setCoin((prev) => prev + multiplyCoins), 1500);
     return () => clearInterval(timerId);
   }, [energy, multiplyCoins]);
 
@@ -148,14 +171,15 @@ export default function ModalStore() {
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{energy}</Text>
-            <Text style={styles.statLabel}>BEANZ</Text>
+            <Text style={styles.statValue}>{beanz}</Text>
+            <Text style={[styles.statLabel, styles.statLabelRed]}>BEANZ</Text>
             <View style={[styles.statBar, styles.statBarEnergy]}>
               <View
                 style={[
                   styles.statBarFill,
-                  { width: `${fillWidth}%` },
-                  styles.statBarFillEnergy,
+                  // { width: `${fillWidth}%` },
+                  { width: '100%' },
+                  styles.statBarFillRed,
                 ]}
               />
             </View>
@@ -201,6 +225,13 @@ export default function ModalStore() {
           </TouchableOpacity>
         </View>
 
+        <Text style={styles.sectionTitle}>MINING BEANZ</Text>
+        <View style={styles.upgradeGrid}>
+          <TouchableOpacity onPress={beanzMiningPlus} style={styles.upgradeBtn}>
+            <Text style={styles.upgradeBtnTitle}>BEANZ/M +1</Text>
+            <Text style={styles.upgradeBtnSub}>×{beanzMining}</Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity onPress={resetProgress} style={styles.resetBtn}>
           <Text style={styles.resetBtnText}>Сбросить прогресс</Text>
         </TouchableOpacity>
@@ -372,6 +403,9 @@ const styles = StyleSheet.create({
   statLabelGold: {
     color: NFT.goldDim,
   },
+  statLabelRed: {
+    color: NFT.red,
+  },
   statBar: {
     marginTop: 10,
     width: '100%',
@@ -390,6 +424,10 @@ const styles = StyleSheet.create({
   },
   statBarFillGold: {
     backgroundColor: NFT.gold,
+    width: '100%',
+  },
+  statBarFillRed: {
+    backgroundColor: NFT.red,
     width: '100%',
   },
   progressSection: {
@@ -456,7 +494,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   upgradeBtn: {
-    width: '49%',
+    width: '48%',
     minWidth: 130,
     backgroundColor: NFT.card,
     borderRadius: 14,
