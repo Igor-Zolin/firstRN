@@ -12,10 +12,24 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key_change_this';
 
 // Middleware для парсинга JSON
+app.use(express.json());
+
 app.use(cors({
-  origin: ['http://localhost:8081'],
-  credentials: true,
+  origin(origin, cb) {
+    // запросы без origin (curl, postman) — разрешаем
+    if (!origin) return cb(null, true);
+
+    const ok =
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:');
+
+    cb(ok ? null : new Error('Not allowed by CORS'), ok);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+app.options(/.*/, cors());
 
 // Middleware для проверки токена
 const authenticateToken = (req, res, next) => {

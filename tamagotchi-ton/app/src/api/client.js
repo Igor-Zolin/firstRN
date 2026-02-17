@@ -1,39 +1,51 @@
 import { Platform } from 'react-native';
 
-// 1) База API: web берет hostname текущей страницы, native — руками IP/эмулятор
+// ВАЖНО: не вычисляем API_BASE на верхнем уровне файла
+
 export const getApiBase = () => {
+  // Web: window доступен только в браузере, не в SSR
   if (Platform.OS === 'web') {
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:3000`;
+    if (typeof window !== 'undefined' && window?.location) {
+      const { protocol, hostname } = window.location;
+      return `${protocol}//${hostname}:3000`;
+    }
+    // SSR fallback (когда window нет)
+    return 'http://localhost:3000';
   }
-  // Варианты:
-  // Android emulator: 10.0.2.2
-  // iOS simulator: localhost
-  // Real device: IP твоего ПК в Wi-Fi, например http://192.168.1.10:3000
+
+  // Native: подставь актуальный адрес под свою среду
   return 'http://10.0.2.2:3000';
 };
 
-const API_BASE = getApiBase();
-
-// 2) Хранилище токена (минимально)
+// Простое хранилище токена (пока)
 const tokenStorage = {
   async get() {
-    if (Platform.OS === 'web') return localStorage.getItem('token');
-    // если хочешь позже — подключим expo-secure-store
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined') return null; // SSR
+      return localStorage.getItem('token');
+    }
     return global.__token ?? null;
   },
   async set(token) {
-    if (Platform.OS === 'web') localStorage.setItem('token', token);
-    else global.__token = token;
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined') return; // SSR
+      localStorage.setItem('token', token);
+      return;
+    }
+    global.__token = token;
   },
   async clear() {
-    if (Platform.OS === 'web') localStorage.removeItem('token');
-    else global.__token = null;
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined') return; // SSR
+      localStorage.removeItem('token');
+      return;
+    }
+    global.__token = null;
   },
 };
 
-// 3) Универсальный запрос
 export async function apiFetch(path, options = {}) {
+  const API_BASE = getApiBase(); // <-- вычисляем здесь, когда уже есть окружение
   const token = await tokenStorage.get();
 
   const headers = {
@@ -47,18 +59,21 @@ export async function apiFetch(path, options = {}) {
     headers,
   });
 
-  // Научимся читать ошибки красиво
   const contentType = res.headers.get('content-type') || '';
   const bodyText = await res.text();
-  const data = contentType.includes('application/json') && bodyText
-    ? JSON.parse(bodyText)
-    : bodyText;
+  const data =
+    contentType.includes('application/json') && bodyText
+      ? JSON.parse(bodyText)
+      : bodyText;
 
   if (!res.ok) {
     const message =
-      (typeof data === 'object' && data && data.error) ? data.error :
-      (typeof data === 'string' && data) ? data :
-      `Request failed with ${res.status}`;
+      typeof data === 'object' && data?.error
+        ? data.error
+        : typeof data === 'string' && data
+        ? data
+        : `Request failed with ${res.status}`;
+
     const err = new Error(message);
     err.status = res.status;
     err.data = data;
@@ -68,7 +83,6 @@ export async function apiFetch(path, options = {}) {
   return data;
 }
 
-// 4) Методы auth
 export async function login(username, password) {
   const data = await apiFetch('/api/auth/login', {
     method: 'POST',

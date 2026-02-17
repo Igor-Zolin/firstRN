@@ -302,24 +302,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
   },
-  // nftCardGlow: {
-  //   position: 'absolute',
-  //   width: '92%',
-  //   aspectRatio: 1,
-  //   maxWidth: 320,
-  //   borderRadius: 28,
-  //   backgroundColor: NFT.glow,
-  //   ...Platform.select({
-  //     web: { boxShadow: `0 0 60px ${NFT.glow}` },
-  //     default: {
-  //       shadowColor: NFT.cyan,
-  //       shadowOffset: { width: 0, height: 0 },
-  //       shadowOpacity: 0.5,
-  //       shadowRadius: 30,
-  //       elevation: 12,
-  //     },
-  //   }),
-  // },
   nftCard: {
     width: '100%',
     maxWidth: 300,
