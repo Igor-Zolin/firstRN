@@ -174,7 +174,7 @@ app.post('/api/auth/login', (req, res) => {
 // Получить профиль текущего пользователя (защищено токеном)
 app.get('/api/auth/me', authenticateToken, (req, res) => {
   db.get(
-    `SELECT id, username, email, lvl, xp, coins, beanz, created_at FROM users WHERE id = ?`,
+    `SELECT id, username, email, created_at FROM users WHERE id = ?`,
     [req.user.id],
     (err, user) => {
       if (err) {
@@ -192,7 +192,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 });
 
 app.get('/api/stats', (req, res) => {
-  db.all('SELECT * FROM stats', [], (err, rows) => {
+  db.all('SELECT * FROM user_stats', [], (err, rows) => {
     if (err) {
       console.error('Error fetching stats:', err.message);
       return res.status(500).json({ error: 'Failed to fetch stats' });
@@ -294,6 +294,90 @@ app.get('/api/items', (req, res) => {
     return res.json(rows);
   });
 });
+const nowSec = () => Math.floor(Date.now() / 1000);
+
+function toClientStats(row) {
+  return {
+    energy: row.energy,
+    energyCap: row.energy_cap,
+
+    coins: row.coins,
+    coinsCap: row.coins_cap,
+
+    beanz: row.beanz,
+
+    xp: row.xp,
+    level: row.level,
+
+    tapMult: row.tap_mult_x100 / 100,
+    coinsRate: row.coins_rate_x100 / 100,
+    beanzRate: row.beanz_rate_x1000 / 1000,
+  };
+}
+
+// tick: пересчитать пассивку на основании last_tick_at
+function applyTick(userId, cb) {
+  db.get(
+    `SELECT s.*, m.last_tick_at
+     FROM user_stats s
+     JOIN user_meta m ON m.user_id = s.user_id
+     WHERE s.user_id = ?`,
+    [userId],
+    (err, row) => {
+      if (err) return cb(err);
+      if (!row) return cb(Object.assign(new Error('Stats not found'), { code: 404 }));
+
+      const now = nowSec();
+      const last = row.last_tick_at || now;
+      const delta = Math.max(0, now - last);
+
+      if (delta === 0) return cb(null); // ничего делать не надо
+
+      // --- правила под твои интервалы ---
+      const energyLoss = Math.floor(delta / 100); // 1 energy / 100 sec
+      const beanzTicks = Math.floor(delta / 1.5); // каждые 1.5 sec
+      const coinTicks = Math.floor(delta / 100);  // каждые 100 sec
+
+      let energy = row.energy;
+      energy = Math.max(0, energy - energyLoss);
+
+      // coins: добываем только если есть энергия (>0)
+      let coins = row.coins;
+      if (energy > 0 && coinTicks > 0) {
+        // coins_rate_x100 это "монет за тик" *100
+        const coinsPerTick = row.coins_rate_x100 / 100;
+        coins += Math.floor(coinTicks * coinsPerTick);
+      }
+
+      // cap
+      coins = Math.min(coins, row.coins_cap);
+
+      // beanz
+      let beanz = row.beanz;
+      const beanzPerTick = row.beanz_rate_x1000 / 1000;
+      if (beanzTicks > 0 && beanzPerTick > 0) {
+        beanz += Math.floor(beanzTicks * beanzPerTick);
+      }
+
+      // сохранить
+      db.serialize(() => {
+        db.run(
+          `UPDATE user_stats
+           SET energy = ?, coins = ?, beanz = ?, updated_at = ?
+           WHERE user_id = ?`,
+          [energy, coins, beanz, now, userId]
+        );
+        db.run(
+          `UPDATE user_meta
+           SET last_tick_at = ?, updated_at = ?
+           WHERE user_id = ?`,
+          [now, now, userId],
+          (e2) => cb(e2 || null)
+        );
+      });
+    }
+  );
+}
 
 app.listen(PORT, () => {
   console.log(`[~] Server running on http://127.0.0.1:${PORT}`);

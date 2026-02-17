@@ -30,7 +30,7 @@ const NFT = {
   glowGold: 'rgba(251, 191, 36, 0.3)',
 };
 
-export default function ModalStore() {
+export default function App() {
   const [energy, setEnergy] = useState(0);
   const [maxEnergy, setMaxEnergy] = useState(100);
   const [multiply, setMultiply] = useState(1);
