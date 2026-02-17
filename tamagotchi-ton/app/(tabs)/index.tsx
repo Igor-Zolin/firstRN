@@ -145,10 +145,11 @@ export default function ModalStore() {
           <View>
             <Text style={styles.headerLabel}>COLLECTION</Text>
             <Text style={styles.headerTitle}>Shao</Text>
+            <Link href="/modals/modal" style={styles.linkText}>VIEW ON TONSCAN</Link>
           </View>
           <Link href="/" dismissTo asChild>
             <TouchableOpacity style={linkButtonStyle}>
-              <Text style={styles.linkText}>PROFILE</Text>
+              <Link href="/modals/testmodal" style={styles.linkText}>PROFILE</Link>
             </TouchableOpacity>
           </Link>
         </View>

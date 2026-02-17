@@ -8,10 +8,8 @@ import {
   Text,
   ScrollView,
   Platform,
+  FlatList,
 } from 'react-native';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 
 const NFT = {
   bg: '#0A0A0F',
@@ -32,99 +30,50 @@ const NFT = {
   glowGold: 'rgba(251, 191, 36, 0.3)',
 };
 
-export default function ModalStore() {
-  const [energy, setEnergy] = useState(0);
-  const [maxEnergy, setMaxEnergy] = useState(100);
-  const [multiply, setMultiply] = useState(1);
-  
-  const [beanz, setBeanz] = useState(0);
-  const [beanzMining, setBeanzMining] = useState(0);
-  
-  const [coin, setCoin] = useState(0);
-  const [multiplyCoins, setMultiplyCoins] = useState(1);
+export default function Profile() {
 
-  const fillWidth = Math.min(100, (energy / maxEnergy) * 100);
-
-  // Reset all progress
-  useEffect(() => {
-    setEnergy(0);
-    setMultiply(1);
-    setBeanz(0);
-    setBeanzMining(0);
-    setCoin(0);
-    setMultiplyCoins(1);
-    setMaxEnergy(100);
-  }, []);
-
-  const resetProgress = () => {
-    setEnergy(0);
-    setMultiply(1);
-    setBeanz(0);
-    setBeanzMining(0);
-    setCoin(0);
-    setMultiplyCoins(1);
-    setMaxEnergy(100);
-  };
-
-  useEffect(() => {
-    if (beanzMining <= 0) return;
-
-    const beanzTimerId = setInterval(() => {
-      setBeanz((prev) => prev + beanzMining);
-    }, 1500);
-    return () => clearInterval(beanzTimerId);
-  }, [beanzMining]);
-
-  const beanzMiningPlus = () => {
-    if (coin >= 20) {
-      setCoin((prev) => prev - 20);
-      setBeanzMining((prev) => prev + 1);
-    } else {
-      alert('Недостаточно монет для улучшения!');
-    }
-  };
-
-  const multiplyPlus = () => {
-    if (coin >= 50) {
-      setCoin((prev) => prev - 50);
-      setMultiply((prev) => prev + 1);
-    } else {
-      alert('Недостаточно монет для улучшения!');
-    }
-  };
-  const multiplyMulti = () => {
-    if (coin >= 100) {
-      setCoin((prev) => prev - 100);
-      setMultiply((prev) => prev * 2);
-    } else {
-      alert('Недостаточно монет для улучшения!');
-    }
-  };
-  const handleValueChange = () => {
-    if (energy < maxEnergy) setEnergy((prev) => prev + multiply);
-  };
-
-  useEffect(() => {
-    if (energy >= maxEnergy) setEnergy(maxEnergy);
-    const timerId = setInterval(() => {
-      setEnergy((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 2000);
-    return () => clearInterval(timerId);
-  }, [energy]);
-
-  useEffect(() => {
-    if (energy <= 0) return;
-    const timerId = setInterval(() => setCoin((prev) => prev + multiplyCoins), 1500);
-    return () => clearInterval(timerId);
-  }, [energy, multiplyCoins]);
-
-  const maxEnergyPlus = () => setMaxEnergy((prev) => prev + 50);
-  const coinsPlus = () => setMultiplyCoins((prev) => prev + 5);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const linkButtonStyle = StyleSheet.flatten([
     styles.linkButton,
     { borderColor: NFT.cyanDim },
   ]);
+  const API_BASE =
+    Platform.OS === 'web'
+      ? `${window.location.protocol}//${window.location.hostname}:3000`
+      : 'http://10.0.2.2:3000';
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/items`);
+
+        console.log('status', res.status);
+        console.log('content-type', res.headers.get('content-type'));
+
+        const text = await res.text();
+        console.log('raw', text);
+
+        const json = JSON.parse(text);
+        setData(json);
+      } catch (e) {
+        console.error('FETCH ERROR:', e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+  useEffect(() => {
+    console.log('data length:', data.length);
+    if (data[0]) console.log('first item:', data[0]);
+  }, [data]);
+
+  const renderItem = ({ item }) => (
+    <View style={{ paddingVertical: 10, width: '100%' }}>
+      <Text style={{ color: NFT.text, fontSize: 16 }}>{item.name}</Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -151,7 +100,7 @@ export default function ModalStore() {
               <Text style={styles.rarityText}>#1</Text>
             </View>
             <TouchableOpacity
-              onPress={handleValueChange}
+              // onPress={handleValueChange}
               activeOpacity={0.9}
               style={styles.petTouchArea}
             >
@@ -168,73 +117,15 @@ export default function ModalStore() {
             </TouchableOpacity>
           </View>
         </View>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{beanz}</Text>
-            <Text style={[styles.statLabel, styles.statLabelRed]}>BEANZ</Text>
-            <View style={[styles.statBar, styles.statBarEnergy]}>
-              <View
-                style={[
-                  styles.statBarFill,
-                  // { width: `${fillWidth}%` },
-                  { width: '100%' },
-                  styles.statBarFillRed,
-                ]}
-              />
-            </View>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{coin}</Text>
-            <Text style={[styles.statLabel, styles.statLabelGold]}>COINS</Text>
-            <View style={styles.statBar}>
-              <View style={[styles.statBarFill, styles.statBarFillGold, { width: '100%' }]} />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.progressSection}>
-          <View style={styles.progressLabelRow}>
-            <Text style={styles.progressTitle}>POWER</Text>
-            <Text style={styles.progressNumbers}>
-              {energy} / {maxEnergy}
-            </Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${fillWidth}%` }]} />
-          </View>
-        </View>
-
+        
         <Text style={styles.sectionTitle}>UPGRADES</Text>
-        <View style={styles.upgradeGrid}>
-          <TouchableOpacity onPress={multiplyPlus} style={styles.upgradeBtn}>
-            <Text style={styles.upgradeBtnTitle}>+1 STEP</Text>
-            <Text style={styles.upgradeBtnSub}>×{multiply}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={multiplyMulti} style={styles.upgradeBtn}>
-            <Text style={styles.upgradeBtnTitle}>×2 MULT</Text>
-            <Text style={styles.upgradeBtnSub}>×{multiply}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={maxEnergyPlus} style={styles.upgradeBtn}>
-            <Text style={styles.upgradeBtnTitle}>CAP +50</Text>
-            <Text style={styles.upgradeBtnSub}>{maxEnergy}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={coinsPlus} style={styles.upgradeBtn}>
-            <Text style={styles.upgradeBtnTitle}>COIN/S +5</Text>
-            <Text style={styles.upgradeBtnSub}>{multiplyCoins}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.sectionTitle}>MINING BEANZ</Text>
-        <View style={styles.upgradeGrid}>
-          <TouchableOpacity onPress={beanzMiningPlus} style={styles.upgradeBtn}>
-            <Text style={styles.upgradeBtnTitle}>BEANZ/M +1</Text>
-            <Text style={styles.upgradeBtnSub}>×{beanzMining}</Text>
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity onPress={resetProgress} style={styles.resetBtn}>
-          <Text style={styles.resetBtnText}>Сбросить прогресс</Text>
-        </TouchableOpacity>
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          scrollEnabled={false}
+          contentContainerStyle={{ width: '100%' }}
+        />
       </ScrollView>
     </View>
   );
