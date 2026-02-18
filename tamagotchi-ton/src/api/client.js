@@ -11,9 +11,9 @@ export const getApiBase = () => {
     }
     return 'http://localhost:3000';
   }
-
+  // localhost for Android
   if (Platform.OS === 'android') return 'http://10.0.2.2:3000';
-  // iOS simulator может работать с localhost, но ты указал IP — оставлю твой вариант
+  // localhost's IP for iOS simulator
   return 'http://192.168.3.72:3000';
 };
 
@@ -31,7 +31,7 @@ async function clearToken() {
 
 async function request(path, { method = 'GET', body } = {}) {
   const token = await getToken();
-  const API_BASE = getApiBase(); // ВАЖНО: вызываем функцию
+  const API_BASE = getApiBase(); // Call function
 
   const res = await fetch(`${API_BASE}${path}`, {
     method,

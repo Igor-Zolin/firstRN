@@ -88,7 +88,7 @@ function ensureUserState(userId, cb) {
   });
 }
 
-// tick: пересчитать пассивку на основании last_tick_at
+// tick: пересчёт offline прогресса по last_tick_at
 function applyTick(userId, cb) {
   db.get(
     `SELECT s.*, m.last_tick_at
@@ -106,10 +106,10 @@ function applyTick(userId, cb) {
 
       if (delta === 0) return cb(null);
 
-      // правила под твои интервалы:
-      const energyLoss = Math.floor(delta / 100); // 1 энергия / 100 сек
-      const beanzTicks = Math.floor(delta / 1.5); // каждые 1.5 сек
-      const coinTicks = Math.floor(delta / 100);  // каждые 100 сек
+      // rules:
+      const energyLoss = Math.floor(delta / 60); // 1 энергия / 1 мин
+      const beanzTicks = Math.floor(delta / 600); // каждые 10 минут
+      const coinTicks = Math.floor(delta / 60);  // + монеты каждую минуту
 
       let energy = row.energy;
       energy = Math.max(0, energy - energyLoss);
@@ -157,7 +157,7 @@ function getFreshStats(userId, cb) {
   });
 }
 
-// ---------- routes ----------
+// ---------- test route ----------
 app.get('/api/heartbeat', (req, res) => {
   return res.status(200).json({ code: 200, message: 'Healthy!' });
 });
@@ -262,6 +262,7 @@ app.post('/api/auth/login', (req, res) => {
   });
 });
 
+// Запрос ответа текущего пользователя
 app.get('/api/auth/me', authenticateToken, (req, res) => {
   db.get(
     `SELECT id, username, email, created_at FROM users WHERE id = ?`,
@@ -330,13 +331,6 @@ app.post('/api/actions/upgrade', authenticateToken, (req, res) => {
     let coins = s.coins;
     const next = { ...s };
 
-    // ЦЕНЫ И ЭФФЕКТЫ — под твой текущий фронт:
-    // beanzMiningPlus: -20 coins, +1
-    // multiplyPlus:    -50 coins, +1
-    // multiplyMulti:   -100 coins, *1.5
-    // maxEnergyPlus:   +50 cap (без цены, т.к. фронт сейчас не списывает coins)
-    // coinsPlus:       +0.1 (без цены, т.к. фронт сейчас не списывает coins)
-
     if (kind === 'beanz_mining') {
       if (coins < 20) return res.status(400).json({ error: 'Not enough coins' });
       coins -= 20;
@@ -359,12 +353,43 @@ app.post('/api/actions/upgrade', authenticateToken, (req, res) => {
     }
 
     if (kind === 'cap_energy') {
+      const price = Math.floor(s.coins_cap * 0.7);
+
+      if (coins < price) {
+        return res.status(400).json({
+          error: `Not enough coins. Need ${price}`,
+        });
+      }
+      coins -= price;
       next.energy_cap = s.energy_cap + 50;
       next.upg_energy_cap_level = s.upg_energy_cap_level + 1;
     }
 
+    if (kind === 'cap_coins') {
+      const price = Math.floor(s.coins_cap * 0.80);
+
+      if (coins < price) {
+        return res.status(400).json({
+          error: `Not enough coins. Need ${price}`,
+        });
+      }
+
+      coins -= price;
+      next.coins_cap = Math.floor(s.coins_cap * 1.25); // +25% coins cap
+      next.upg_coins_level = s.upg_coins_level + 1;
+    }
+    
     if (kind === 'coin_rate') {
-      next.coins_rate_x100 = s.coins_rate_x100 + 10; // +0.10
+      const price = Math.floor(s.coins_cap * 0.90);
+
+      if (coins < price) {
+        return res.status(400).json({
+          error: `Not enough coins. Need ${price}`,
+        });
+      }
+
+      coins -= price;
+      next.coins_rate_x100 = s.coins_rate_x100 + 10; // +0.10 coins / min
       next.upg_coins_level = s.upg_coins_level + 1;
     }
 
