@@ -1,5 +1,6 @@
+
 import { Link } from 'expo-router';
-import React, { useState, useEffect, useCallback  } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,7 +10,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { getMyStats, tap, upgrade, resetProgress, cheat } from '@/src/api/client';
+
 
 const NFT = {
   bg: '#0A0A0F',
@@ -30,72 +31,112 @@ const NFT = {
   glowGold: 'rgba(251, 191, 36, 0.3)',
 };
 
-export default function TestApp() {
-  // ---- state теперь отражает данные с бэка ----
+export default function App() {
   const [energy, setEnergy] = useState(0);
   const [maxEnergy, setMaxEnergy] = useState(100);
   const [multiply, setMultiply] = useState(1);
-
+  
   const [beanz, setBeanz] = useState(0);
   const [beanzMining, setBeanzMining] = useState(0);
-
+  
   const [coin, setCoin] = useState(0);
   const [maxCoins, setMaxCoins] = useState(501);
   const [multiplyCoins, setMultiplyCoins] = useState(1);
 
   const [xp, setXp] = useState(0);
 
-  const applyServerStats = useCallback((s: { energy: any; energyCap: any; coins: any; coinsCap: any; beanz: any; xp: any; tapMult: any; coinsRate: any; beanzRate: any; }) => {
-    setEnergy(s.energy ?? 0);
-    setMaxEnergy(s.energyCap ?? 100);
-    setCoin(s.coins ?? 0);
-    setMaxCoins(s.coinsCap ?? 501);
-    setBeanz(s.beanz ?? 0);
-    setXp(s.xp ?? 0);
+  const fillWidth = Math.min(100, (energy / maxEnergy) * 100);
 
-    setMultiply(s.tapMult ?? 1);
-    setMultiplyCoins(s.coinsRate ?? 1);
-    setBeanzMining(s.beanzRate ?? 0);
+  // Reset all progress
+  useEffect(() => {
+    setEnergy(0);
+    setMultiply(1);
+    setBeanz(0);
+    setBeanzMining(0);
+    setCoin(0);
+    setMultiplyCoins(1);
+    setMaxEnergy(100);
   }, []);
 
-  const load = useCallback(async () => {
-    try {
-      const s = await getMyStats();
-      applyServerStats(s);
-    } catch (e) {
-      console.log(e);
-      // если 401 — токена нет/протух -> отправляй на логин
-      // alert(e.message);
-    }
-  }, [applyServerStats]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // handlers (только заменяем логику, JSX не трогаем)
-  const handleValueChange = async () => {
-    const s = await tap();
-    applyServerStats(s);
+  const resetProgress = () => {
+    setEnergy(0);
+    setMultiply(1);
+    setBeanz(0);
+    setBeanzMining(0);
+    setCoin(0);
+    setMultiplyCoins(1);
+    setMaxEnergy(100);
   };
 
-  const multiplyPlus = async () => applyServerStats(await upgrade('tap_plus'));
-  const multiplyMulti = async () => applyServerStats(await upgrade('tap_multi'));
-  const maxEnergyPlus = async () => applyServerStats(await upgrade('cap_energy'));
-  const coinsPlus = async () => applyServerStats(await upgrade('coin_rate'));
-  const beanzMiningPlus = async () => applyServerStats(await upgrade('beanz_mining'));
+  const CheatCode = () => {
+    setEnergy(50);
+    setCoin(500);
+    setBeanz(50);
+  }
 
-  const resetAll = async () => applyServerStats(await resetProgress());
-  const CheatCode = async () => applyServerStats(await cheat());
+  useEffect(() => {
+    if (beanzMining <= 0) return;
 
-  const fillWidth = Math.min(100, (energy / Math.max(1, maxEnergy)) * 100);
+    const beanzTimerId = setInterval(() => {
+      setBeanz((prev) => prev + beanzMining);
+    }, 1500);
+    return () => clearInterval(beanzTimerId);
+  }, [beanzMining]);
+
+  const beanzMiningPlus = () => {
+    if (coin >= 20) {
+      setCoin((prev) => prev - 20);
+      setBeanzMining((prev) => prev + 1);
+    } else {
+      alert('Недостаточно монет для улучшения!');
+    }
+  };
+
+  const multiplyPlus = () => {
+    if (coin >= 50) {
+      setCoin((prev) => prev - 50);
+      setMultiply((prev) => prev + 1);
+    } else {
+      alert('Недостаточно монет для улучшения!');
+    }
+  };
+  const multiplyMulti = () => {
+    if (coin >= 100) {
+      setCoin((prev) => prev - 100);
+      setMultiply((prev) => prev * 1.5);
+    } else {
+      alert('Недостаточно монет для улучшения!');
+    }
+  };
+  const handleValueChange = () => {
+    if (energy < maxEnergy) setEnergy((prev) => prev + multiply);
+  };
+
+  useEffect(() => {
+    if (energy >= maxEnergy) setEnergy(maxEnergy);
+    const timerId = setInterval(() => {
+      setEnergy((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 100000);
+    return () => clearInterval(timerId);
+  }, [energy]);
+
+  useEffect(() => {
+    if (energy <= 0) return;
+    const timerId = setInterval(() => setCoin((prev) => prev + multiplyCoins), 100000);
+    if (coin >= maxCoins) setCoin(maxEnergy);
+    return () => clearInterval(timerId);
+  }, [energy, multiplyCoins]);
+
+  const maxEnergyPlus = () => setMaxEnergy((prev) => prev + 25);
+  const maxCoinsPlus = () => setMaxCoins((prev) => prev * 1.25);
+  const coinsPlus = () => setMultiplyCoins((prev) => prev + 0.1);
 
   const linkButtonStyle = StyleSheet.flatten([
-      styles.linkButton,
-      { borderColor: NFT.cyanDim },
-    ]);
+    styles.linkButton,
+    { borderColor: NFT.cyanDim },
+  ]);
 
-    return (
+  return (
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -204,7 +245,7 @@ export default function TestApp() {
         </View>
 
         <View style={styles.upgradeGrid}>
-          <TouchableOpacity onPress={resetAll} style={styles.resetBtn}>
+          <TouchableOpacity onPress={resetProgress} style={styles.resetBtn}>
             <Text style={styles.resetBtnText}>Сбросить прогресс</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={CheatCode} style={styles.resetBtn}>
@@ -215,7 +256,6 @@ export default function TestApp() {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

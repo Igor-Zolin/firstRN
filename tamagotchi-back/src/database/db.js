@@ -66,6 +66,7 @@ db.serialize(() => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_items_model_name ON items(model_name)`);
 
   // Таблица инвентаря (relations table)
   db.run(`
@@ -80,6 +81,25 @@ db.serialize(() => {
       UNIQUE(user_id, item_id)
     )
   `);
+  
+  db.run(`
+    CREATE TABLE IF NOT EXISTS user_equipped (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+
+      background_item_id INTEGER REFERENCES items(id) ON DELETE SET NULL,
+      weapon_item_id     INTEGER REFERENCES items(id) ON DELETE SET NULL,
+      eyes_item_id       INTEGER REFERENCES items(id) ON DELETE SET NULL,
+      cloth_item_id      INTEGER REFERENCES items(id) ON DELETE SET NULL,
+      hat_item_id        INTEGER REFERENCES items(id) ON DELETE SET NULL,
+
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_equipped_user ON user_equipped(user_id)`);
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_items_type ON items(type)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_inventory_user ON inventory(user_id)`);
+
 });
 
 db.on('open', () => console.log('Connected to SQLite database'));

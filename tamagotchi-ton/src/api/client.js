@@ -115,3 +115,37 @@ export async function resetProgress() {
 export async function cheat() {
   return request('/api/actions/cheat', { method: 'POST' });
 }
+
+// ---- shop ----
+export async function getShopCategories() {
+  return request('/api/shop/categories');
+}
+
+export async function getShopItemsMe(params = {}) {
+  const q = new URLSearchParams();
+  if (params.type) q.set('type', params.type);
+  if (params.rarity) q.set('rarity', params.rarity);
+  if (params.q) q.set('q', params.q);
+  if (params.limit) q.set('limit', String(params.limit));
+  if (params.offset) q.set('offset', String(params.offset));
+
+  const qs = q.toString();
+  return request(`/api/shop/items/me${qs ? `?${qs}` : ''}`);
+}
+
+export async function buyItem(itemId) {
+  return request('/api/shop/buy', { method: 'POST', body: { itemId } });
+}
+
+export async function getInventoryMe() {
+  return request('/api/inventory/me');
+}
+
+// ---- equip ----
+export async function getEquippedMe() {
+  return request('/api/equip/me');
+}
+
+export async function equipItem(slot, itemId) {
+  return request('/api/equip', { method: 'POST', body: { slot, itemId } });
+}

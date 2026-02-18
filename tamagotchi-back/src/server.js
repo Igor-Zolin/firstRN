@@ -7,6 +7,9 @@ const cors = require('cors');
 
 const db = require('./database/db');
 
+const path = require('path');
+
+
 dotenv.config();
 
 const app = express();
@@ -16,6 +19,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key_change_this';
 // ---------- middleware ----------
 app.use(express.json());
 
+app.use('/static', express.static(path.join(__dirname, '..', 'public')));
 app.use(
   cors({
     origin(origin, cb) {
@@ -70,18 +74,60 @@ function toClientStats(row) {
   };
 }
 
+// стартовая экипировка (то, что выдаём со старта)
+const START_ITEMS = [37, 70, 84, 97]; // background, cloth, eyes, hat
+
+function grantStarterItems(userId, cb) {
+  db.serialize(() => {
+    const stmt = db.prepare(
+      `INSERT OR IGNORE INTO inventory (user_id, item_id, quantity)
+       VALUES (?, ?, 1)`
+    );
+
+    for (const itemId of START_ITEMS) {
+      stmt.run([userId, itemId]);
+    }
+
+    stmt.finalize((err) => cb(err || null));
+  });
+}
+
 function ensureUserState(userId, cb) {
   const now = nowSec();
+
   db.serialize(() => {
     db.run(
       `INSERT OR IGNORE INTO user_stats (user_id, updated_at) VALUES (?, ?)`,
       [userId, now],
       (e1) => {
         if (e1) return cb(e1);
+
         db.run(
-          `INSERT OR IGNORE INTO user_meta (user_id, last_tick_at, updated_at) VALUES (?, ?, ?)`,
+          `INSERT OR IGNORE INTO user_meta (user_id, last_tick_at, updated_at)
+           VALUES (?, ?, ?)`,
           [userId, now, now],
-          (e2) => cb(e2 || null)
+          (e2) => {
+            if (e2) return cb(e2);
+
+            db.run(
+              `INSERT OR IGNORE INTO user_equipped (
+                user_id,
+                background_item_id,
+                weapon_item_id,
+                eyes_item_id,
+                cloth_item_id,
+                hat_item_id,
+                updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [userId, 37, null, 84, 70, 97, now],
+              (e3) => {
+                if (e3) return cb(e3);
+
+                // ВОТ ЭТО ДОБАВИЛИ
+                grantStarterItems(userId, (e4) => cb(e4 || null));
+              }
+            );
+          }
         );
       }
     );
@@ -529,13 +575,304 @@ app.get('/api/users/:id/inventory', authenticateToken, (req, res) => {
   );
 });
 
-app.get('/api/items', (req, res) => {
-  db.all('SELECT * FROM items', [], (err, rows) => {
-    if (err) {
-      console.error('Error fetching items:', err.message);
-      return res.status(500).json({ error: 'Failed to fetch items' });
+app.get('/api/shop/items', (req, res) => {
+  const { type, q, rarity, limit = 200, offset = 0 } = req.query;
+
+  const where = [];
+  const params = [];
+
+  if (type) { where.push('type = ?'); params.push(type); }
+  if (rarity) { where.push('rarity = ?'); params.push(rarity); }
+  if (q) { where.push('(name LIKE ? OR model_name LIKE ?)'); params.push(`%${q}%`, `%${q}%`); }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  db.all(
+    `SELECT * FROM items ${whereSql} ORDER BY rarity DESC, price ASC, id ASC LIMIT ? OFFSET ?`,
+    [...params, Number(limit), Number(offset)],
+    (err, rows) => {
+      if (err) {
+        console.error('Error fetching shop items:', err.message);
+        return res.status(500).json({ error: 'Failed to fetch items' });
+      }
+
+      const base = `${req.protocol}://${req.get('host')}`;
+      const items = rows.map((it) => ({
+        ...it,
+        imageUrl: `${base}/static/items/${it.model_name}`, // model_name = "hat/cat_black.PNG"
+      }));
+
+      return res.json(items);
     }
-    return res.json(rows);
+  );
+});
+
+app.get('/api/shop/items/me', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const { type, q, rarity, limit = 200, offset = 0 } = req.query;
+
+  const where = ['inv.item_id IS NULL']; // главное: нет в инвентаре
+  const params = [userId];
+
+  if (type) { where.push('it.type = ?'); params.push(type); }
+  if (rarity) { where.push('it.rarity = ?'); params.push(rarity); }
+  if (q) { where.push('(it.name LIKE ? OR it.model_name LIKE ?)'); params.push(`%${q}%`, `%${q}%`); }
+
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+
+  db.all(
+    `SELECT it.*
+     FROM items it
+     LEFT JOIN inventory inv
+       ON inv.item_id = it.id AND inv.user_id = ?
+     ${whereSql}
+     ORDER BY it.rarity DESC, it.price ASC, it.id ASC
+     LIMIT ? OFFSET ?`,
+    [...params, Number(limit), Number(offset)],
+    (err, rows) => {
+      if (err) {
+        console.error('Error fetching shop items (me):', err.message);
+        return res.status(500).json({ error: 'Failed to fetch items' });
+      }
+
+      const base = `${req.protocol}://${req.get('host')}`;
+      const items = rows.map((it) => ({
+        ...it,
+        imageUrl: `${base}/static/items/${it.model_name}`,
+      }));
+
+      return res.json(items);
+    }
+  );
+});
+
+app.get('/api/shop/categories', (req, res) => {
+  db.all(`SELECT DISTINCT type FROM items ORDER BY type ASC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Failed to fetch categories' });
+    res.json(rows.map(r => r.type));
+  });
+});
+
+app.post('/api/shop/buy', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const { itemId } = req.body;
+
+  const id = Math.floor(Number(itemId));
+  if (!id) return res.status(400).json({ error: 'Invalid itemId' });
+
+  getFreshStats(userId, (err, s) => {
+    if (err) return res.status(500).json({ error: 'Failed to fetch stats' });
+
+    db.get(`SELECT * FROM items WHERE id = ?`, [id], (e1, item) => {
+      if (e1) return res.status(500).json({ error: 'Failed to fetch item' });
+      if (!item) return res.status(404).json({ error: 'Item not found' });
+
+      // 1) проверяем, не куплен ли уже
+      db.get(
+        `SELECT 1 FROM inventory WHERE user_id = ? AND item_id = ?`,
+        [userId, id],
+        (eInv, owned) => {
+          if (eInv) return res.status(500).json({ error: 'Failed to check inventory' });
+          if (owned) return res.status(409).json({ error: 'Item already owned' });
+
+          const total = item.price;
+          if (total <= 0) return res.status(400).json({ error: 'Bad item price' });
+
+          if (s.coins < total) {
+            return res.status(400).json({ error: 'Not enough coins' });
+          }
+
+          const now = nowSec();
+          const newCoins = s.coins - total;
+
+          db.serialize(() => {
+            // 2) списать coins
+            db.run(
+              `UPDATE user_stats SET coins=?, updated_at=? WHERE user_id=?`,
+              [newCoins, now, userId],
+              (e2) => {
+                if (e2) return res.status(500).json({ error: 'Failed to charge coins' });
+
+                // 3) добавить в инвентарь ОДИН раз
+                db.run(
+                  `INSERT INTO inventory (user_id, item_id, quantity) VALUES (?, ?, 1)`,
+                  [userId, id],
+                  (e3) => {
+                    if (e3) {
+                      // если вдруг гонка — UNIQUE сработал
+                      if (String(e3.message || '').includes('UNIQUE')) {
+                        return res.status(409).json({ error: 'Item already owned' });
+                      }
+                      return res.status(500).json({ error: 'Failed to add to inventory' });
+                    }
+
+                    // 4) вернуть stats
+                    db.get(`SELECT * FROM user_stats WHERE user_id=?`, [userId], (e4, row) => {
+                      if (e4) return res.status(500).json({ error: 'Failed to fetch stats' });
+                      return res.json({
+                        ok: true,
+                        spent: total,
+                        item: { id: item.id, name: item.name, type: item.type },
+                        stats: toClientStats(row),
+                      });
+                    });
+                  }
+                );
+              }
+            );
+          });
+        }
+      );
+    });
+  });
+});
+
+
+app.get('/api/inventory/me', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+
+  db.all(
+    `SELECT i.item_id, i.quantity,
+            it.name, it.type, it.model_name, it.rarity, it.price
+     FROM inventory i
+     JOIN items it ON it.id = i.item_id
+     WHERE i.user_id = ?
+     ORDER BY it.type ASC, it.rarity DESC, it.price ASC`,
+    [userId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: 'Failed to fetch inventory' });
+
+      const base = `${req.protocol}://${req.get('host')}`;
+      const items = rows.map((r) => ({
+        ...r,
+        imageUrl: `${base}/static/items/${r.model_name}`,
+      }));
+
+      res.json(items);
+    }
+  );
+});
+
+app.get('/api/equip/me', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+
+  db.get(
+    `SELECT *
+     FROM user_equipped
+     WHERE user_id = ?`,
+    [userId],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: 'Failed to fetch equipped' });
+
+      // если вдруг строки нет (на старых юзерах) — создадим
+      if (!row) {
+        const now = nowSec();
+        return db.run(
+          `INSERT OR IGNORE INTO user_equipped (user_id, updated_at) VALUES (?, ?)`,
+          [userId, now],
+          (e2) => {
+            if (e2) return res.status(500).json({ error: 'Failed to init equipped' });
+            return res.json({
+              backgroundItemId: null,
+              weaponItemId: null,
+              eyesItemId: null,
+              clothItemId: null,
+              hatItemId: null,
+            });
+          }
+        );
+      }
+
+      return res.json({
+        backgroundItemId: row.background_item_id ?? null,
+        weaponItemId: row.weapon_item_id ?? null,
+        eyesItemId: row.eyes_item_id ?? null,
+        clothItemId: row.cloth_item_id ?? null,
+        hatItemId: row.hat_item_id ?? null,
+      });
+    }
+  );
+});
+
+app.post('/api/equip', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const { slot, itemId } = req.body;
+
+  const allowedSlots = new Set(['background', 'weapon', 'eyes', 'cloth', 'hat']);
+  if (!allowedSlots.has(slot)) {
+    return res.status(400).json({ error: 'Invalid slot' });
+  }
+
+  const id = Math.floor(Number(itemId));
+  if (!id) return res.status(400).json({ error: 'Invalid itemId' });
+
+  // 1) item должен существовать
+  db.get(`SELECT id, type FROM items WHERE id = ?`, [id], (e1, item) => {
+    if (e1) return res.status(500).json({ error: 'Failed to fetch item' });
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
+    // 2) type должен совпадать со slot
+    if (item.type !== slot) {
+      return res.status(400).json({
+        error: `Item type "${item.type}" cannot be equipped into slot "${slot}"`,
+      });
+    }
+
+    // 3) item должен быть куплен
+    db.get(
+      `SELECT 1 FROM inventory WHERE user_id = ? AND item_id = ?`,
+      [userId, id],
+      (e2, owned) => {
+        if (e2) return res.status(500).json({ error: 'Failed to check inventory' });
+        if (!owned) return res.status(403).json({ error: 'You do not own this item' });
+
+        const now = nowSec();
+
+        // 4) обновить нужную колонку
+        const colMap = {
+          background: 'background_item_id',
+          weapon: 'weapon_item_id',
+          eyes: 'eyes_item_id',
+          cloth: 'cloth_item_id',
+          hat: 'hat_item_id',
+        };
+
+        const col = colMap[slot];
+
+        db.serialize(() => {
+          // на всякий случай гарантируем строку
+          db.run(
+            `INSERT OR IGNORE INTO user_equipped (user_id, updated_at) VALUES (?, ?)`,
+            [userId, now]
+          );
+
+          db.run(
+            `UPDATE user_equipped
+             SET ${col} = ?, updated_at = ?
+             WHERE user_id = ?`,
+            [id, now, userId],
+            (e3) => {
+              if (e3) return res.status(500).json({ error: 'Failed to equip item' });
+
+              db.get(`SELECT * FROM user_equipped WHERE user_id = ?`, [userId], (e4, row) => {
+                if (e4) return res.status(500).json({ error: 'Failed to fetch equipped' });
+
+                return res.json({
+                  ok: true,
+                  equipped: {
+                    backgroundItemId: row.background_item_id ?? null,
+                    weaponItemId: row.weapon_item_id ?? null,
+                    eyesItemId: row.eyes_item_id ?? null,
+                    clothItemId: row.cloth_item_id ?? null,
+                    hatItemId: row.hat_item_id ?? null,
+                  },
+                });
+              });
+            }
+          );
+        });
+      }
+    );
   });
 });
 
@@ -602,6 +939,40 @@ app.get('/api/seed', (req, res) => {
     data: { users: 3, items: 7, inventory_entries: 8 },
   });
 });
+
+app.post('/api/dev/apply-start-equip', (req, res) => {
+  const now = nowSec();
+
+  db.serialize(() => {
+    // гарантируем строку всем пользователям (на случай если не создавалась)
+    db.run(`
+      INSERT OR IGNORE INTO user_equipped (user_id, updated_at)
+      SELECT id, ${now} FROM users
+    `);
+
+    // дозаполняем только NULL
+    db.run(
+      `
+      UPDATE user_equipped
+      SET
+        background_item_id = COALESCE(background_item_id, 37),
+        eyes_item_id       = COALESCE(eyes_item_id, 84),
+        cloth_item_id      = COALESCE(cloth_item_id, 70),
+        hat_item_id        = COALESCE(hat_item_id, 97),
+        updated_at         = ?
+      `,
+      [now],
+      (err) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({ error: 'Failed to apply start equip' });
+        }
+        return res.json({ ok: true });
+      }
+    );
+  });
+});
+
 
 app.listen(PORT, () => {
   console.log(`[~] Server running on http://127.0.0.1:${PORT}`);
