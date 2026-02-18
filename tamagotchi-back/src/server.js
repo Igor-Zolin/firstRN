@@ -123,7 +123,6 @@ function ensureUserState(userId, cb) {
               (e3) => {
                 if (e3) return cb(e3);
 
-                // ВОТ ЭТО ДОБАВИЛИ
                 grantStarterItems(userId, (e4) => cb(e4 || null));
               }
             );
@@ -150,28 +149,44 @@ function applyTick(userId, cb) {
       const last = row.last_tick_at || now;
       const delta = Math.max(0, now - last);
 
-      if (delta === 0) return cb(null);
+      // интервалы (в секундах)
+      const ENERGY_INTERVAL = 60;   // 1 энергия / 60 сек
+      const COIN_INTERVAL = 60;     // монеты / 60 сек (если energy > 0)
+      const BEANZ_INTERVAL = 600;   // beanz / 600 сек
 
-      // rules:
-      const energyLoss = Math.floor(delta / 60); // 1 энергия / 1 мин
-      const beanzTicks = Math.floor(delta / 600); // каждые 10 минут
-      const coinTicks = Math.floor(delta / 60);  // + монеты каждую минуту
+      // сколько полных тиков прошло
+      const energyTicks = Math.floor(delta / ENERGY_INTERVAL);
+      const coinTicks  = Math.floor(delta / COIN_INTERVAL);
+      const beanzTicks = Math.floor(delta / BEANZ_INTERVAL);
 
+      // если ни одного полного тика — вообще ничего не пишем в БД
+      if (energyTicks === 0 && coinTicks === 0 && beanzTicks === 0) {
+        return cb(null);
+      }
+
+      // начисления/убывания
       let energy = row.energy;
-      energy = Math.max(0, energy - energyLoss);
+      energy = Math.max(0, energy - energyTicks);
 
       let coins = row.coins;
       if (energy > 0 && coinTicks > 0) {
-        const coinsPerTick = row.coins_rate_x100 / 100;
+        const coinsPerTick = row.coins_rate_x100 / 100; // монет за тик
         coins += Math.floor(coinTicks * coinsPerTick);
       }
       coins = Math.min(coins, row.coins_cap);
 
       let beanz = row.beanz;
-      const beanzPerTick = row.beanz_rate_x1000 / 1000;
+      const beanzPerTick = row.beanz_rate_x1000 / 1000; // beanz за тик
       if (beanzTicks > 0 && beanzPerTick > 0) {
         beanz += Math.floor(beanzTicks * beanzPerTick);
       }
+
+      let consumed = Infinity;
+      if (energyTicks > 0) consumed = Math.min(consumed, energyTicks * ENERGY_INTERVAL);
+      if (coinTicks  > 0) consumed = Math.min(consumed, coinTicks  * COIN_INTERVAL);
+      if (beanzTicks > 0) consumed = Math.min(consumed, beanzTicks * BEANZ_INTERVAL);
+
+      const newLast = last + consumed;
 
       db.serialize(() => {
         db.run(
@@ -180,11 +195,12 @@ function applyTick(userId, cb) {
            WHERE user_id = ?`,
           [energy, coins, beanz, now, userId]
         );
+
         db.run(
           `UPDATE user_meta
            SET last_tick_at = ?, updated_at = ?
            WHERE user_id = ?`,
-          [now, now, userId],
+          [newLast, now, userId],
           (e2) => cb(e2 || null)
         );
       });
@@ -877,68 +893,68 @@ app.post('/api/equip', authenticateToken, (req, res) => {
 });
 
 // ---------- seed (без lvl/xp/coins/beanz в users) ----------
-app.get('/api/seed', (req, res) => {
-  db.serialize(() => {
-    db.run(
-      `
-      INSERT OR IGNORE INTO users (username, password, email)
-      VALUES 
-        ('player1', '$2b$10$abcdefghijklmnopqrstuv', 'player1@test.com'),
-        ('player2', '$2b$10$abcdefghijklmnopqrstuv', 'player2@test.com'),
-        ('player3', '$2b$10$abcdefghijklmnopqrstuv', 'player3@test.com')
-    `,
-      (err) => {
-        if (err) console.error('Error inserting users:', err.message);
-      }
-    );
+// app.get('/api/seed', (req, res) => {
+//   db.serialize(() => {
+//     db.run(
+//       `
+//       INSERT OR IGNORE INTO users (username, password, email)
+//       VALUES 
+//         ('player1', '$2b$10$abcdefghijklmnopqrstuv', 'player1@test.com'),
+//         ('player2', '$2b$10$abcdefghijklmnopqrstuv', 'player2@test.com'),
+//         ('player3', '$2b$10$abcdefghijklmnopqrstuv', 'player3@test.com')
+//     `,
+//       (err) => {
+//         if (err) console.error('Error inserting users:', err.message);
+//       }
+//     );
 
-    db.run(
-      `
-      INSERT OR IGNORE INTO items (name, type, model_name, rarity, price)
-      VALUES 
-        ('Golden Head', 'head', 'golden_head.png', 'epic', 500),
-        ('Silver Head', 'head', 'silver_head.png', 'rare', 300),
-        ('Red Body', 'body', 'red_body.png', 'common', 100),
-        ('Blue Body', 'body', 'blue_body.png', 'rare', 250),
-        ('Black Boots', 'boots', 'black_boots.png', 'common', 50),
-        ('Golden Boots', 'boots', 'golden_boots.png', 'legendary', 1000),
-        ('Purple Cape', 'cape', 'purple_cape.png', 'epic', 400)
-    `,
-      (err) => {
-        if (err) console.error('Error inserting items:', err.message);
-      }
-    );
+//     db.run(
+//       `
+//       INSERT OR IGNORE INTO items (name, type, model_name, rarity, price)
+//       VALUES 
+//         ('Golden Head', 'head', 'golden_head.png', 'epic', 500),
+//         ('Silver Head', 'head', 'silver_head.png', 'rare', 300),
+//         ('Red Body', 'body', 'red_body.png', 'common', 100),
+//         ('Blue Body', 'body', 'blue_body.png', 'rare', 250),
+//         ('Black Boots', 'boots', 'black_boots.png', 'common', 50),
+//         ('Golden Boots', 'boots', 'golden_boots.png', 'legendary', 1000),
+//         ('Purple Cape', 'cape', 'purple_cape.png', 'epic', 400)
+//     `,
+//       (err) => {
+//         if (err) console.error('Error inserting items:', err.message);
+//       }
+//     );
 
-    db.run(
-      `
-      INSERT OR IGNORE INTO inventory (user_id, item_id, quantity)
-      VALUES 
-        (1, 1, 1),
-        (1, 3, 1),
-        (1, 5, 1),
-        (2, 2, 1),
-        (2, 4, 1),
-        (3, 1, 1),
-        (3, 6, 1),
-        (3, 7, 1)
-    `,
-      (err) => {
-        if (err) console.error('Error inserting inventory:', err.message);
-      }
-    );
+//     db.run(
+//       `
+//       INSERT OR IGNORE INTO inventory (user_id, item_id, quantity)
+//       VALUES 
+//         (1, 1, 1),
+//         (1, 3, 1),
+//         (1, 5, 1),
+//         (2, 2, 1),
+//         (2, 4, 1),
+//         (3, 1, 1),
+//         (3, 6, 1),
+//         (3, 7, 1)
+//     `,
+//       (err) => {
+//         if (err) console.error('Error inserting inventory:', err.message);
+//       }
+//     );
 
-    // гарантируем user_stats/user_meta для первых трёх пользователей
-    ensureUserState(1, () => {});
-    ensureUserState(2, () => {});
-    ensureUserState(3, () => {});
-  });
+//     // гарантируем user_stats/user_meta для первых трёх пользователей
+//     ensureUserState(1, () => {});
+//     ensureUserState(2, () => {});
+//     ensureUserState(3, () => {});
+//   });
 
-  return res.status(200).json({
-    code: 200,
-    message: 'Database seeded successfully!',
-    data: { users: 3, items: 7, inventory_entries: 8 },
-  });
-});
+//   return res.status(200).json({
+//     code: 200,
+//     message: 'Database seeded successfully!',
+//     data: { users: 3, items: 7, inventory_entries: 8 },
+//   });
+// });
 
 app.post('/api/dev/apply-start-equip', (req, res) => {
   const now = nowSec();

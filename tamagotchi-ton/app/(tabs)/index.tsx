@@ -4,7 +4,6 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Text,
   ScrollView,
   Platform,
@@ -141,7 +140,7 @@ export default function App() {
           <View>
             <Text style={styles.headerLabel}>COLLECTION</Text>
             <Text style={styles.headerTitle}>Shao</Text>
-            <Link href="/modals/shop" style={styles.linkText}>EQUIP SHOP</Link>
+            {/* <Link href="/modals/shop" style={styles.linkText}>EQUIP SHOP</Link> */}
           </View>
           <Link href="/" dismissTo asChild>
             <TouchableOpacity style={linkButtonStyle}>
@@ -257,6 +256,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: NFT.bg,
+    ...Platform.select({
+      web: { paddingTopTop: 0 },
+      default: { paddingTop: 35 }
+    })
   },
   scrollContent: {
     padding: 20,

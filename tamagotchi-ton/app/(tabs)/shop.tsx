@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Platform
 } from 'react-native';
 import { getMyStats } from '../../src/api/client';
 import { getShopCategories, getShopItemsMe, buyItem } from '../../src/api/client';
@@ -200,7 +201,15 @@ export default function ShopScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: NFT.bg, padding: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: NFT.bg,
+    padding: 16,
+    ...Platform.select({
+          web: { paddingTopTop: 0 },
+          default: { paddingTop: 50 }
+        })
+  },
   center: { justifyContent: 'center', alignItems: 'center', gap: 10 },
 
   header: {
@@ -230,6 +239,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     display: 'flex',
     flexDirection: 'row',
+    justifyContent: 'center'
    },
   tab: {
     paddingVertical: 8,
@@ -248,11 +258,12 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     gap: 10,
   },
   itemCard: {
     width: '48%',
+    maxWidth: 300,
     backgroundColor: NFT.card,
     borderWidth: 1,
     borderColor: NFT.cardBorder,

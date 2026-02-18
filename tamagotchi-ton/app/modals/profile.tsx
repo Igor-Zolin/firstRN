@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   headerLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 3, color: NFT.cyanDim },
   headerTitle: { fontSize: 26, fontWeight: '800', color: NFT.text, marginTop: 4 },
 
-  equippedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  equippedRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 12 },
 
   badge: {
     backgroundColor: NFT.card,
@@ -216,12 +216,13 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     gap: 10,
   },
 
   card: {
     width: '48%',
+    maxWidth: 300,
     backgroundColor: NFT.card,
     borderWidth: 1,
     borderColor: NFT.cardBorder,
