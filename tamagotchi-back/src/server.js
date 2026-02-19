@@ -384,7 +384,14 @@ app.post('/api/actions/upgrade', authenticateToken, (req, res) => {
   const userId = req.user.id;
   const { kind } = req.body;
 
-  const allowed = new Set(['tap_plus', 'tap_multi', 'cap_energy', 'coin_rate', 'beanz_mining']);
+  const allowed = new Set([
+    'tap_plus',
+    'tap_multi',
+    'cap_energy',
+    'cap_coins',
+    'coin_rate',
+    'beanz_mining'
+  ]);
   if (!allowed.has(kind)) return res.status(400).json({ error: 'Invalid upgrade kind' });
 
   getFreshStats(userId, (err, s) => {
@@ -510,7 +517,7 @@ app.post('/api/actions/reset', authenticateToken, (req, res) => {
     db.run(
       `UPDATE user_stats SET
         energy=0, energy_cap=100,
-        coins=0, coins_cap=501,
+        coins=0, coins_cap=500,
         beanz=0,
         xp=0, level=1,
         tap_mult_x100=100, coins_rate_x100=100, beanz_rate_x1000=0,
@@ -537,6 +544,92 @@ app.post('/api/actions/reset', authenticateToken, (req, res) => {
     );
   });
 });
+
+app.post('/api/actions/reset-inv', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const now = nowSec();
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+
+    // 1) очистить инвентарь
+    db.run(`DELETE FROM inventory WHERE user_id=?`, [userId], (err) => {
+      if (err) {
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: 'Failed to reset inventory' });
+      }
+
+      // 2) выдать стартовые вещи в инвентарь (qty = 1)
+      // weapon не выдаём
+      const starter = [
+        [userId, 37, 1],
+        [userId, 84, 1],
+        [userId, 70, 1],
+        [userId, 97, 1],
+      ];
+
+      const stmt = db.prepare(`
+        INSERT INTO inventory (user_id, item_id, quantity)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = excluded.quantity
+      `);
+
+      for (const row of starter) stmt.run(row);
+      stmt.finalize((e2) => {
+        if (e2) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: 'Failed to grant starter items' });
+        }
+
+        // 3) поставить экипировку (UPSERT)
+        db.run(
+          `
+          INSERT INTO user_equipped (
+            user_id,
+            background_item_id,
+            weapon_item_id,
+            eyes_item_id,
+            cloth_item_id,
+            hat_item_id,
+            updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(user_id) DO UPDATE SET
+            background_item_id = excluded.background_item_id,
+            weapon_item_id     = excluded.weapon_item_id,
+            eyes_item_id       = excluded.eyes_item_id,
+            cloth_item_id      = excluded.cloth_item_id,
+            hat_item_id        = excluded.hat_item_id,
+            updated_at         = excluded.updated_at
+          `,
+          [userId, 37, null, 84, 70, 97, now],
+          (e3) => {
+            if (e3) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: 'Failed to reset equipped' });
+            }
+
+            db.run('COMMIT', (e4) => {
+              if (e4) return res.status(500).json({ error: 'Failed to commit reset' });
+
+              return res.json({
+                ok: true,
+                equipped: {
+                  backgroundItemId: 37,
+                  weaponItemId: null,
+                  eyesItemId: 84,
+                  clothItemId: 70,
+                  hatItemId: 97,
+                },
+              });
+            });
+          }
+        );
+      });
+    });
+  });
+});
+
 
 app.post('/api/actions/cheat', authenticateToken, (req, res) => {
   const userId = req.user.id;
@@ -694,20 +787,20 @@ app.post('/api/shop/buy', authenticateToken, (req, res) => {
           const total = item.price;
           if (total <= 0) return res.status(400).json({ error: 'Bad item price' });
 
-          if (s.coins < total) {
-            return res.status(400).json({ error: 'Not enough coins' });
+          if (s.beanz < total) {
+            return res.status(400).json({ error: 'Not enough beanz' });
           }
 
           const now = nowSec();
-          const newCoins = s.coins - total;
+          const newBeanz = s.beanz - total;
 
           db.serialize(() => {
-            // 2) списать coins
+            // 2) списать beanz
             db.run(
-              `UPDATE user_stats SET coins=?, updated_at=? WHERE user_id=?`,
-              [newCoins, now, userId],
+              `UPDATE user_stats SET beanz=?, updated_at=? WHERE user_id=?`,
+              [newBeanz, now, userId],
               (e2) => {
-                if (e2) return res.status(500).json({ error: 'Failed to charge coins' });
+                if (e2) return res.status(500).json({ error: 'Failed to charge beanz' });
 
                 // 3) добавить в инвентарь ОДИН раз
                 db.run(

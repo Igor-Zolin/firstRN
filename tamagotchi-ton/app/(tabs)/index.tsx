@@ -24,7 +24,7 @@ const NFT = {
   gold: '#FBBF24',
   goldDim: 'rgba(251, 191, 36, 0.7)',
   energy: '#22D3EE',
-  red: '#f33f32',
+  beanz: '#f33f32',
   text: '#E2E8F0',
   textMuted: '#94A3B8',
   glow: 'rgba(0, 212, 255, 0.35)',
@@ -42,7 +42,7 @@ export default function App() {
   const [beanzMining, setBeanzMining] = useState(0);
   
   const [coin, setCoin] = useState(0);
-  const [maxCoins, setMaxCoins] = useState(501);
+  const [maxCoins, setMaxCoins] = useState(500);
   const [multiplyCoins, setMultiplyCoins] = useState(1);
   
   const [xp, setXp] = useState(0);
@@ -51,7 +51,7 @@ export default function App() {
     setEnergy(s.energy ?? 0);
     setMaxEnergy(s.energyCap ?? 100);
     setCoin(s.coins ?? 0);
-    setMaxCoins(s.coinsCap ?? 501);
+    setMaxCoins(s.coinsCap ?? 500);
     setBeanz(s.beanz ?? 0);
     setXp(s.xp ?? 0);
     
@@ -111,6 +111,7 @@ export default function App() {
   const maxEnergyPlus = async () => { await upgrade('cap_energy'); await refresh(); };
   const coinsPlus = async () => { await upgrade('coin_rate'); await refresh(); };
   const beanzMiningPlus = async () => { await upgrade('beanz_mining'); await refresh(); };
+  const maxCoinsPlus = async () => { await upgrade('cap_coins'); await refresh(); }
 
   const resetAll = async () => { await resetProgress(); await refresh(); };
   const CheatCode = async () => { await cheat(); await refresh(); };
@@ -221,12 +222,12 @@ export default function App() {
             <Text style={styles.upgradeBtnSub}>×{multiply}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={maxEnergyPlus} style={styles.upgradeBtn}>
-            <Text style={styles.upgradeBtnTitle}>CAP +50</Text>
+            <Text style={styles.upgradeBtnTitle}>MAX ENERGY +50</Text>
             <Text style={styles.upgradeBtnSub}>{maxEnergy}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={coinsPlus} style={styles.upgradeBtn}>
-            <Text style={styles.upgradeBtnTitle}>COIN/S +5</Text>
-            <Text style={styles.upgradeBtnSub}>{multiplyCoins}</Text>
+          <TouchableOpacity onPress={maxCoinsPlus} style={styles.upgradeBtn}>
+            <Text style={styles.upgradeBtnTitle}>MAX COINS +25%</Text>
+            <Text style={styles.upgradeBtnSub}>{maxCoins}</Text>
           </TouchableOpacity>
         </View>
 
@@ -235,6 +236,10 @@ export default function App() {
           <TouchableOpacity onPress={beanzMiningPlus} style={styles.upgradeBtn}>
             <Text style={styles.upgradeBtnTitle}>BEANZ/M +1</Text>
             <Text style={styles.upgradeBtnSub}>×{beanzMining}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={coinsPlus} style={styles.upgradeBtn}>
+            <Text style={styles.upgradeBtnTitle}>COIN/M +0.5</Text>
+            <Text style={styles.upgradeBtnSub}>{multiplyCoins}</Text>
           </TouchableOpacity>
         </View>
 
@@ -402,7 +407,7 @@ const styles = StyleSheet.create({
     color: NFT.goldDim,
   },
   statLabelRed: {
-    color: NFT.red,
+    color: NFT.beanz,
   },
   statBar: {
     marginTop: 10,
@@ -425,7 +430,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   statBarFillRed: {
-    backgroundColor: NFT.red,
+    backgroundColor: NFT.beanz,
     width: '100%',
   },
   progressSection: {

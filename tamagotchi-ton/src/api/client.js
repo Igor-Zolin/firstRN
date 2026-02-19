@@ -141,6 +141,10 @@ export async function getInventoryMe() {
   return request('/api/inventory/me');
 }
 
+export async function resetInventory() {
+  return request('/api/actions/reset-inv', {method: 'POST'});
+}
+
 // ---- equip ----
 export async function getEquippedMe() {
   return request('/api/equip/me');

@@ -10,8 +10,7 @@ import {
   Alert,
   Platform
 } from 'react-native';
-import { getMyStats } from '../../src/api/client';
-import { getShopCategories, getShopItemsMe, buyItem } from '../../src/api/client';
+import { getShopCategories, getShopItemsMe, buyItem, getMyStats } from '../../src/api/client';
 
 const NFT = {
   bg: '#0A0A0F',
@@ -24,7 +23,7 @@ const NFT = {
   purpleDim: 'rgba(168, 85, 247, 0.5)',
   gold: '#FBBF24',
   goldDim: 'rgba(251, 191, 36, 0.7)',
-  red: '#f33f32',
+  beanz: '#f33f32',
   text: '#E2E8F0',
   textMuted: '#94A3B8',
 };
@@ -44,6 +43,7 @@ export default function ShopScreen() {
   const [buyingId, setBuyingId] = useState<number | null>(null);
 
   const [coins, setCoins] = useState(0);
+  const [beanz, setBeanz] = useState(0);
 
   const [categories, setCategories] = useState<string[]>([]);
   const [activeType, setActiveType] = useState<string>('');
@@ -57,6 +57,7 @@ export default function ShopScreen() {
       const [cats, stats] = await Promise.all([getShopCategories(), getMyStats()]);
       setCategories(cats || []);
       setCoins(stats?.coins ?? 0);
+      setBeanz(stats?.beanz ?? 0);
 
       const defaultType = (cats && cats.length > 0) ? cats[0] : '';
       setActiveType(defaultType);
@@ -79,6 +80,7 @@ export default function ShopScreen() {
         getShopItemsMe(type ? { type } : {}),
       ]);
       setCoins(stats?.coins ?? 0);
+      setCoins(stats?.beanz ?? 0);
       setItems(Array.isArray(shopItems) ? shopItems : []);
     } catch (e: any) {
       console.log(e);
@@ -101,8 +103,8 @@ export default function ShopScreen() {
     if (buyingId) return;
 
     // локальная проверка — чисто UX (сервер всё равно перепроверит)
-    if (coins < item.price) {
-      Alert.alert('Недостаточно монет', `Нужно: ${item.price}`);
+    if (beanz < item.price) {
+      Alert.alert('Недостаточно бобов', `Нужно: ${item.price}`);
       return;
     }
 
@@ -110,7 +112,7 @@ export default function ShopScreen() {
     try {
       await buyItem(item.id);
 
-      // после покупки: обновляем coins + список товаров (купленное пропадёт)
+      // после покупки: обновляем beanz + список товаров (купленное пропадёт)
       await loadItems(activeType);
     } catch (e: any) {
       console.log(e);
@@ -140,8 +142,8 @@ export default function ShopScreen() {
         </View>
 
         <View style={styles.balanceCard}>
-          <Text style={styles.balanceValue}>{coins}</Text>
-          <Text style={styles.balanceLabel}>COINS</Text>
+          <Text style={styles.balanceValue}>{beanz}</Text>
+          <Text style={styles.balanceLabel}>BEANZ</Text>
         </View>
       </View>
 
@@ -233,7 +235,7 @@ const styles = StyleSheet.create({
     minWidth: 96,
   },
   balanceValue: { fontSize: 18, fontWeight: '800', color: NFT.text },
-  balanceLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 2, color: NFT.goldDim, marginTop: 4 },
+  balanceLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 2, color: NFT.beanz, marginTop: 4 },
 
   tabs: {
     marginBottom: 12,

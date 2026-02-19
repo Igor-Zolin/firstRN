@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 
-import { getInventoryMe, getEquippedMe, equipItem } from '../../src/api/client';
+import { getInventoryMe, getEquippedMe, equipItem, resetInventory } from '../../src/api/client';
 
 const NFT = {
   bg: '#0A0A0F',
@@ -69,7 +69,7 @@ export default function ProfileScreen() {
     if (equipped.hatItemId) m.set(equipped.hatItemId, 'hat');
     return m;
   }, [equipped]);
-
+  
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -87,6 +87,17 @@ export default function ProfileScreen() {
   useEffect(() => {
     load();
   }, [load]);
+  
+  const resetInv = async () => {
+    try {
+      const r = await resetInventory();
+      console.log('reset-inv result:', r);
+      await load();
+    } catch (e) {
+      console.log('reset-inv error:', e);
+      alert(String(e?.message || e));
+    }
+  };
 
   const onEquip = async (it: InventoryItem) => {
     if (equipping) return;
@@ -176,6 +187,9 @@ export default function ProfileScreen() {
           })
         )}
       </ScrollView>
+      <TouchableOpacity onPress={resetInv} style={styles.resetBtn}>
+        <Text style={styles.resetBtnText}>Сбросить прогресс</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -260,4 +274,18 @@ const styles = StyleSheet.create({
 
   empty: { width: '100%', paddingTop: 40, alignItems: 'center' },
   muted: { color: NFT.textMuted, fontWeight: '600' },
+
+  resetBtn: {
+    maxWidth: 300,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: NFT.purpleDim,
+  },
+  resetBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: NFT.textMuted,
+  },
 });
