@@ -9,8 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { ShaoLayers } from '@/components/ShaoLayers';
-import { getMyStats, tap, upgrade, resetProgress, cheat, getEquippedMe, getInventoryMe } from '@/src/api/client';
-
+import { getMyStats, tap, upgrade, resetProgress, cheat, getEquippedMe, getInventoryMe, dailyClaim } from '@/src/api/client';
 
 const NFT = {
   bg: '#0A0A0F',
@@ -30,7 +29,6 @@ const NFT = {
   glow: 'rgba(0, 212, 255, 0.35)',
   glowGold: 'rgba(251, 191, 36, 0.3)',
 };
-
 
 export default function App() {
   // ---- state теперь отражает данные с бэка ----
@@ -69,6 +67,16 @@ export default function App() {
   });
 
   const [inventory, setInventory] = useState([]);
+  
+  const load = useCallback(async () => {
+    try {
+      const stats = await getMyStats();
+      applyServerStats(stats);
+      dailyClaim(); // попытка забрать ежедневный бонус при загрузке
+    } catch (e) {
+      console.log(e);
+    }
+  }, [applyServerStats]);
 
   const refresh = useCallback(async () => {
     try {
@@ -95,6 +103,10 @@ export default function App() {
       console.log(e);
     }
   }, [applyServerStats]);
+
+  useEffect(() => {
+    load();
+  }, []);
 
   useEffect(() => {
     refresh();
@@ -148,6 +160,9 @@ export default function App() {
               <Link href="/modals/profile" style={styles.linkText}>PROFILE</Link>
             </TouchableOpacity>
           </Link>
+            <View style={linkButtonStyle}>
+              <Text style={styles.linkText}>{xp} XP</Text>
+            </View>
         </View>
 
         <View style={styles.nftCardWrap}>

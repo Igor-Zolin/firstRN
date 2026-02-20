@@ -24,6 +24,7 @@ const NFT = {
   gold: '#FBBF24',
   goldDim: 'rgba(251, 191, 36, 0.7)',
   beanz: '#f33f32',
+  beanzDim: '#992a25',
   text: '#E2E8F0',
   textMuted: '#94A3B8',
 };
@@ -185,7 +186,7 @@ export default function ShopScreen() {
               </Text>
 
               <View style={styles.priceRow}>
-                <Text style={styles.price}>{it.price} COINS</Text>
+                <Text style={styles.price}>{it.price} BEANZ</Text>
                 <TouchableOpacity
                   onPress={() => onBuy(it)}
                   style={[styles.buyBtn, buyingId === it.id && styles.buyBtnDisabled]}
@@ -289,7 +290,7 @@ const styles = StyleSheet.create({
   itemMeta: { color: NFT.textMuted, fontSize: 11, marginTop: 4 },
 
   priceRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  price: { color: NFT.goldDim, fontWeight: '800', fontSize: 12 },
+  price: { color: NFT.beanzDim, fontWeight: '800', fontSize: 12 },
 
   buyBtn: {
     paddingVertical: 8,

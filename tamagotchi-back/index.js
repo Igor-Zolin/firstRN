@@ -187,3 +187,13 @@
 // app.listen(3000, () => {
 //   console.log("API running on http://localhost:3000");
 // });
+
+// requirementsToUpLevel = 50 + (1 * 1 * 10) = 50 + 10 = 60
+// requirementsToUpLevel = 50 + (2 * 2 * 10) = 50 + 40 = 90
+// requirementsToUpLevel = 50 + (3 * 3 * 10) = 50 + 90 = 140
+// requirementsToUpLevel = 50 + (4 * 4 * 10) = 50 + 160 = 210
+// requirementsToUpLevel = 50 + (5 * 5 * 10) = 50 + 250 = 300
+// requirementsToUpLevel = 50 + (6 * 6 * 10) = 50 + 360 = 410
+// requirementsToUpLevel = 50 + (7 * 7 * 10) = 50 + 490 = 540
+// requirementsToUpLevel = 50 + (8 * 8 * 10) = 50 + 640 = 690
+// requirementsToUpLevel = 50 + (9 * 9 * 10) = 50 + 810 = 860

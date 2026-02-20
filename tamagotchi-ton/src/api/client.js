@@ -90,6 +90,10 @@ export async function me() {
   return request('/api/auth/me');
 }
 
+export async function dailyClaim() {
+  return request('/api/daily/claim', { method: 'POST' });
+}
+
 export async function logout() {
   await clearToken();
 }

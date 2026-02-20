@@ -22,7 +22,7 @@ db.serialize(() => {
       energy_cap            INTEGER NOT NULL DEFAULT 100,
 
       coins                 INTEGER NOT NULL DEFAULT 0,
-      coins_cap             INTEGER NOT NULL DEFAULT 501,
+      coins_cap             INTEGER NOT NULL DEFAULT 500,
 
       beanz                 INTEGER NOT NULL DEFAULT 0,
 
@@ -49,7 +49,9 @@ db.serialize(() => {
       last_tick_at   INTEGER NOT NULL DEFAULT (strftime('%s','now')),
       balance_ver    INTEGER NOT NULL DEFAULT 1,
       is_banned      INTEGER NOT NULL DEFAULT 0,
-      updated_at     INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+      updated_at     INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+      daily_streak   INTEGER NOT NULL DEFAULT 0,
+      last_daily_day INTEGER NOT NULL DEFAULT 0
     )
   `);
 

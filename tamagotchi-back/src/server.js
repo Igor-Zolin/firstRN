@@ -56,6 +56,7 @@ const authenticateToken = (req, res, next) => {
 const nowSec = () => Math.floor(Date.now() / 1000);
 
 function toClientStats(row) {
+  const need = xpToNext(row.level);
   return {
     energy: row.energy,
     energyCap: row.energy_cap,
@@ -65,14 +66,23 @@ function toClientStats(row) {
 
     beanz: row.beanz,
 
-    xp: row.xp,
     level: row.level,
+    xp: row.xp,
+    xpToNext: need,
+    xpProgress: row.xp / need,
 
     tapMult: row.tap_mult_x100 / 100,
     coinsRate: row.coins_rate_x100 / 100,
     beanzRate: row.beanz_rate_x1000 / 1000,
   };
 }
+const XP_BY_RARITY = {
+  common: 10,
+  uncommon: 25,
+  rare: 50,
+  epic: 100,
+  legendary: 250,
+};
 
 // стартовая экипировка (то, что выдаём со старта)
 const START_ITEMS = [37, 70, 84, 97]; // background, cloth, eyes, hat
@@ -131,7 +141,98 @@ function ensureUserState(userId, cb) {
       }
     );
   });
-}
+};
+
+const utcDay = () => Math.floor(Date.now() / 1000 / 86400);
+
+app.post('/api/daily/claim', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const now = nowSec();
+  const today = utcDay();
+
+  db.get(`SELECT * FROM user_meta WHERE user_id=?`, [userId], (e1, meta) => {
+    if (e1) return res.status(500).json({ error: 'Failed to fetch meta' });
+    if (!meta) return res.status(404).json({ error: 'Meta not found' });
+
+    const last = meta.last_daily_day || 0;
+    let streak = meta.daily_streak || 0;
+
+    // уже получал сегодня
+    if (last === today) {
+      return res.json({ ok: true, claimed: false, streak, rewardXp: 0 });
+    }
+
+    // подряд или сброс
+    if (last === today - 1) streak += 1;
+    else streak = 1;
+
+    const rewardXp = Math.min(50, streak * 10);
+
+
+    // начислить xp
+    db.get(`SELECT xp, level FROM user_stats WHERE user_id=?`, [userId], (e2, s) => {
+      if (e2) return res.status(500).json({ error: 'Failed to fetch stats' });
+      if (!s) return res.status(404).json({ error: 'Stats not found' });
+
+      const { level, xp } = recalcLevel(s.xp + rewardXp, s.level);
+
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+
+        db.run(
+          `UPDATE user_meta
+           SET daily_streak=?, last_daily_day=?, updated_at=?
+           WHERE user_id=?`,
+          [streak, today, now, userId],
+          (e3) => {
+            if (e3) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: 'Failed to update daily meta' });
+            }
+
+            db.run(
+              `UPDATE user_stats SET xp=?, level=?, updated_at=? WHERE user_id=?`,
+              [xp, level, now, userId],
+              (e4) => {
+                if (e4) {
+                  db.run('ROLLBACK');
+                  return res.status(500).json({ error: 'Failed to add xp' });
+                }
+
+                db.run('COMMIT', (e5) => {
+                  if (e5) return res.status(500).json({ error: 'Failed to commit' });
+                  return res.json({
+                    ok: true,
+                    claimed: true,
+                    streak,
+                    rewardXp,
+                    level,
+                    xp,
+                  });
+                });
+              }
+            );
+          }
+        );
+      });
+    });
+  });
+});
+
+function xpToNext(level) {
+  return 50 + level * level * 10;
+};
+
+function recalcLevel(xp, level) {
+  let curXp = Math.max(0, Math.floor(xp));
+  let curLevel = Math.max(1, Math.floor(level));
+
+  while (curXp >= xpToNext(curLevel)) {
+    curXp -= xpToNext(curLevel);
+    curLevel += 1;
+  }
+  return { level: curLevel, xp: curXp };
+};
 
 // tick: пересчёт offline прогресса по last_tick_at
 function applyTick(userId, cb) {
@@ -784,7 +885,7 @@ app.post('/api/shop/buy', authenticateToken, (req, res) => {
           if (eInv) return res.status(500).json({ error: 'Failed to check inventory' });
           if (owned) return res.status(409).json({ error: 'Item already owned' });
 
-          const total = item.price;
+          const total = Number(item.price) || 0;
           if (total <= 0) return res.status(400).json({ error: 'Bad item price' });
 
           if (s.beanz < total) {
@@ -794,41 +895,72 @@ app.post('/api/shop/buy', authenticateToken, (req, res) => {
           const now = nowSec();
           const newBeanz = s.beanz - total;
 
+          const rollback = (status, payload) => {
+            db.run('ROLLBACK', () => res.status(status).json(payload));
+          };
+
           db.serialize(() => {
-            // 2) списать beanz
-            db.run(
-              `UPDATE user_stats SET beanz=?, updated_at=? WHERE user_id=?`,
-              [newBeanz, now, userId],
-              (e2) => {
-                if (e2) return res.status(500).json({ error: 'Failed to charge beanz' });
+            db.run('BEGIN TRANSACTION', (eBegin) => {
+              if (eBegin) return res.status(500).json({ error: 'Failed to begin transaction' });
 
-                // 3) добавить в инвентарь ОДИН раз
-                db.run(
-                  `INSERT INTO inventory (user_id, item_id, quantity) VALUES (?, ?, 1)`,
-                  [userId, id],
-                  (e3) => {
-                    if (e3) {
-                      // если вдруг гонка — UNIQUE сработал
-                      if (String(e3.message || '').includes('UNIQUE')) {
-                        return res.status(409).json({ error: 'Item already owned' });
+              // 2) списать beanz
+              db.run(
+                `UPDATE user_stats SET beanz=?, updated_at=? WHERE user_id=?`,
+                [newBeanz, now, userId],
+                (e2) => {
+                  if (e2) return rollback(500, { error: 'Failed to charge beanz' });
+
+                  // 3) добавить в инвентарь ОДИН раз
+                  db.run(
+                    `INSERT INTO inventory (user_id, item_id, quantity) VALUES (?, ?, 1)`,
+                    [userId, id],
+                    (e3) => {
+                      if (e3) {
+                        if (String(e3.message || '').includes('UNIQUE')) {
+                          return rollback(409, { error: 'Item already owned' });
+                        }
+                        return rollback(500, { error: 'Failed to add to inventory' });
                       }
-                      return res.status(500).json({ error: 'Failed to add to inventory' });
-                    }
 
-                    // 4) вернуть stats
-                    db.get(`SELECT * FROM user_stats WHERE user_id=?`, [userId], (e4, row) => {
-                      if (e4) return res.status(500).json({ error: 'Failed to fetch stats' });
-                      return res.json({
-                        ok: true,
-                        spent: total,
-                        item: { id: item.id, name: item.name, type: item.type },
-                        stats: toClientStats(row),
+                      // 4) начислить XP (внутри транзакции)
+                      const xpGain = (XP_BY_RARITY && XP_BY_RARITY[item.rarity]) ? XP_BY_RARITY[item.rarity] : 0;
+
+                      const applyXp = (cb) => {
+                        if (xpGain <= 0) return cb(null);
+
+                        const { level, xp } = recalcLevel(s.xp + xpGain, s.level);
+                        db.run(
+                          `UPDATE user_stats SET xp=?, level=?, updated_at=? WHERE user_id=?`,
+                          [xp, level, now, userId],
+                          (eXp) => cb(eXp || null)
+                        );
+                      };
+
+                      applyXp((eXp) => {
+                        if (eXp) return rollback(500, { error: 'Failed to apply XP' });
+
+                        // 5) читаем обновлённые stats и коммитим
+                        db.get(`SELECT * FROM user_stats WHERE user_id=?`, [userId], (e4, row) => {
+                          if (e4) return rollback(500, { error: 'Failed to fetch stats' });
+
+                          db.run('COMMIT', (eCommit) => {
+                            if (eCommit) return rollback(500, { error: 'Failed to commit transaction' });
+
+                            return res.json({
+                              ok: true,
+                              spent: total,
+                              item: { id: item.id, name: item.name, type: item.type },
+                              stats: toClientStats(row),
+                              xpGained: xpGain,
+                            });
+                          });
+                        });
                       });
-                    });
-                  }
-                );
-              }
-            );
+                    }
+                  );
+                }
+              );
+            });
           });
         }
       );
@@ -984,70 +1116,6 @@ app.post('/api/equip', authenticateToken, (req, res) => {
     );
   });
 });
-
-// ---------- seed (без lvl/xp/coins/beanz в users) ----------
-// app.get('/api/seed', (req, res) => {
-//   db.serialize(() => {
-//     db.run(
-//       `
-//       INSERT OR IGNORE INTO users (username, password, email)
-//       VALUES 
-//         ('player1', '$2b$10$abcdefghijklmnopqrstuv', 'player1@test.com'),
-//         ('player2', '$2b$10$abcdefghijklmnopqrstuv', 'player2@test.com'),
-//         ('player3', '$2b$10$abcdefghijklmnopqrstuv', 'player3@test.com')
-//     `,
-//       (err) => {
-//         if (err) console.error('Error inserting users:', err.message);
-//       }
-//     );
-
-//     db.run(
-//       `
-//       INSERT OR IGNORE INTO items (name, type, model_name, rarity, price)
-//       VALUES 
-//         ('Golden Head', 'head', 'golden_head.png', 'epic', 500),
-//         ('Silver Head', 'head', 'silver_head.png', 'rare', 300),
-//         ('Red Body', 'body', 'red_body.png', 'common', 100),
-//         ('Blue Body', 'body', 'blue_body.png', 'rare', 250),
-//         ('Black Boots', 'boots', 'black_boots.png', 'common', 50),
-//         ('Golden Boots', 'boots', 'golden_boots.png', 'legendary', 1000),
-//         ('Purple Cape', 'cape', 'purple_cape.png', 'epic', 400)
-//     `,
-//       (err) => {
-//         if (err) console.error('Error inserting items:', err.message);
-//       }
-//     );
-
-//     db.run(
-//       `
-//       INSERT OR IGNORE INTO inventory (user_id, item_id, quantity)
-//       VALUES 
-//         (1, 1, 1),
-//         (1, 3, 1),
-//         (1, 5, 1),
-//         (2, 2, 1),
-//         (2, 4, 1),
-//         (3, 1, 1),
-//         (3, 6, 1),
-//         (3, 7, 1)
-//     `,
-//       (err) => {
-//         if (err) console.error('Error inserting inventory:', err.message);
-//       }
-//     );
-
-//     // гарантируем user_stats/user_meta для первых трёх пользователей
-//     ensureUserState(1, () => {});
-//     ensureUserState(2, () => {});
-//     ensureUserState(3, () => {});
-//   });
-
-//   return res.status(200).json({
-//     code: 200,
-//     message: 'Database seeded successfully!',
-//     data: { users: 3, items: 7, inventory_entries: 8 },
-//   });
-// });
 
 app.post('/api/dev/apply-start-equip', (req, res) => {
   const now = nowSec();
