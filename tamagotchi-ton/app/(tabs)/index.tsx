@@ -22,6 +22,7 @@ const NFT = {
   purpleDim: 'rgba(168, 85, 247, 0.5)',
   gold: '#FBBF24',
   goldDim: 'rgba(251, 191, 36, 0.7)',
+  xp: '#2be98a',
   energy: '#22D3EE',
   beanz: '#f33f32',
   text: '#E2E8F0',
@@ -44,13 +45,19 @@ export default function App() {
   const [multiplyCoins, setMultiplyCoins] = useState(1);
   
   const [xp, setXp] = useState(0);
+  const [level, setLevel] = useState(1);
+  const [xpToNext, setXpToNext] = useState(0);
+  const [xpProgress, setXpProgress] = useState(0);
   
-  const applyServerStats = useCallback((s: { energy: any; energyCap: any; coins: any; coinsCap: any; beanz: any; xp: any; tapMult: any; coinsRate: any; beanzRate: any; }) => {
+  const applyServerStats = useCallback((s: { energy: any; energyCap: any; coins: any; coinsCap: any; beanz: any; xp: any; tapMult: any; coinsRate: any; beanzRate: any; level: any; xpToNext: any; xpProgress: any; }) => {
     setEnergy(s.energy ?? 0);
     setMaxEnergy(s.energyCap ?? 100);
     setCoin(s.coins ?? 0);
     setMaxCoins(s.coinsCap ?? 500);
     setBeanz(s.beanz ?? 0);
+    setLevel(s.level ?? 1);
+    setXpToNext(s.xpToNext ?? 0);
+    setXpProgress(s.xpProgress ?? 0);
     setXp(s.xp ?? 0);
     
     setMultiply(s.tapMult ?? 1);
@@ -66,7 +73,7 @@ export default function App() {
     hatItemId: null,
   });
 
-  const [inventory, setInventory] = useState([]);
+  const [inventory, setInventory] = useState<any[]>([]);
   
   const load = useCallback(async () => {
     try {
@@ -106,7 +113,7 @@ export default function App() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   useEffect(() => {
     refresh();
@@ -135,6 +142,15 @@ export default function App() {
     { borderColor: NFT.cyanDim },
   ]);
 
+  const levelStyle = StyleSheet.flatten([
+    styles.levelBar,
+    { borderColor: NFT.cyanDim },
+  ]);
+  const levelFillStyle = StyleSheet.flatten([
+    styles.levelBarFill,
+    { width: `${Math.max(0, Math.min(100, xpProgress * 100))}%` as any },
+  ]);
+
   useEffect(() => {
     const id = setInterval(() => {
       refresh();
@@ -153,16 +169,15 @@ export default function App() {
           <View>
             <Text style={styles.headerLabel}>COLLECTION</Text>
             <Text style={styles.headerTitle}>Shao</Text>
-            {/* <Link href="/modals/shop" style={styles.linkText}>EQUIP SHOP</Link> */}
           </View>
-          <Link href="/" dismissTo asChild>
-            <TouchableOpacity style={linkButtonStyle}>
-              <Link href="/modals/profile" style={styles.linkText}>PROFILE</Link>
-            </TouchableOpacity>
-          </Link>
-            <View style={linkButtonStyle}>
-              <Text style={styles.linkText}>{xp} XP</Text>
-            </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={styles.linkText}>{`LVL ${level}`}</Text>
+          <View style={levelStyle}>
+            <View style={levelFillStyle} />
+             <Text style={[styles.linkText, styles.xpText]}>{`${xp} / ${xpToNext} XP`}</Text>
+          </View>
+          </View>
         </View>
 
         <View style={styles.nftCardWrap}>
@@ -188,6 +203,19 @@ export default function App() {
               <Text style={styles.tapHint}>TAP TO CHARGE</Text>
             </TouchableOpacity>
           </View>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+
+          <Link href="/modals/profile" dismissTo asChild>
+            <TouchableOpacity style={linkButtonStyle}>
+              <Link href="/modals/profile" style={styles.linkText}>INVENTORY</Link>
+            </TouchableOpacity>
+          </Link>
+          <Link href="/modals/profile" dismissTo asChild>
+            <TouchableOpacity style={linkButtonStyle}>
+              <Link href="/shop" style={styles.linkText}>MARKET</Link>
+            </TouchableOpacity>
+          </Link>
+          </View>
         </View>
 
         <View style={styles.statsRow}>
@@ -198,7 +226,6 @@ export default function App() {
               <View
                 style={[
                   styles.statBarFill,
-                  // { width: `${fillWidth}%` },
                   { width: '100%' },
                   styles.statBarFillRed,
                 ]}
@@ -310,6 +337,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 12,
     borderWidth: 1,
+  },
+  levelBar: {
+    height: 36,
+    minWidth: 120,
+    justifyContent: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: NFT.cyanDim,
+    overflow: 'hidden',
+  },
+  levelBarFill: {
+    position: 'absolute',
+    height: '100%',
+    backgroundColor: NFT.xp,
+    color: NFT.beanz,
+    borderRadius: 18,
+    ...Platform.select({
+      web: { boxShadow: `0 0 12px ${NFT.xp}` },
+      default: {
+        shadowColor: NFT.cyan,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 6,
+      },
+    }),
+  },
+  xpText: {
+    textAlign: 'center',
   },
   linkText: {
     fontSize: 14,

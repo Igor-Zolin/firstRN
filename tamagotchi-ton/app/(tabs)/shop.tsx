@@ -43,7 +43,6 @@ export default function ShopScreen() {
   const [loading, setLoading] = useState(true);
   const [buyingId, setBuyingId] = useState<number | null>(null);
 
-  const [coins, setCoins] = useState(0);
   const [beanz, setBeanz] = useState(0);
 
   const [categories, setCategories] = useState<string[]>([]);
@@ -57,7 +56,6 @@ export default function ShopScreen() {
     try {
       const [cats, stats] = await Promise.all([getShopCategories(), getMyStats()]);
       setCategories(cats || []);
-      setCoins(stats?.coins ?? 0);
       setBeanz(stats?.beanz ?? 0);
 
       const defaultType = (cats && cats.length > 0) ? cats[0] : '';
@@ -80,8 +78,7 @@ export default function ShopScreen() {
         getMyStats(),
         getShopItemsMe(type ? { type } : {}),
       ]);
-      setCoins(stats?.coins ?? 0);
-      setCoins(stats?.beanz ?? 0);
+      setBeanz(stats?.beanz ?? 0);
       setItems(Array.isArray(shopItems) ? shopItems : []);
     } catch (e: any) {
       console.log(e);

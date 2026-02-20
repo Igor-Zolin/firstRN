@@ -93,7 +93,7 @@ export default function ProfileScreen() {
       const r = await resetInventory();
       console.log('reset-inv result:', r);
       await load();
-    } catch (e) {
+    } catch (e: any) {
       console.log('reset-inv error:', e);
       alert(String(e?.message || e));
     }

@@ -68,8 +68,8 @@ function toClientStats(row) {
 
     level: row.level,
     xp: row.xp,
-    xpToNext: need,
-    xpProgress: row.xp / need,
+    xpToNext: need, // сколько нужно для следующего уровня
+    xpProgress: need > 0 ? row.xp / need : 0, // прогресс в процентах (0-1)
 
     tapMult: row.tap_mult_x100 / 100,
     coinsRate: row.coins_rate_x100 / 100,
@@ -157,9 +157,10 @@ app.post('/api/daily/claim', authenticateToken, (req, res) => {
     const last = meta.last_daily_day || 0;
     let streak = meta.daily_streak || 0;
 
+    const beanzReward = 5 + Math.min(streak * 2, 10); // базово 5 beanz + 2 за каждый день в серии (максимум 50)
     // уже получал сегодня
     if (last === today) {
-      return res.json({ ok: true, claimed: false, streak, rewardXp: 0 });
+      return res.json({ ok: true, claimed: false, streak, rewardXp: 0, beanzReward: 0 });
     }
 
     // подряд или сброс
@@ -191,8 +192,8 @@ app.post('/api/daily/claim', authenticateToken, (req, res) => {
             }
 
             db.run(
-              `UPDATE user_stats SET xp=?, level=?, updated_at=? WHERE user_id=?`,
-              [xp, level, now, userId],
+              `UPDATE user_stats SET xp=?, level=?, beanz=?, updated_at=? WHERE user_id=?`,
+              [xp, level, beanzReward, now, userId],
               (e4) => {
                 if (e4) {
                   db.run('ROLLBACK');
@@ -223,15 +224,17 @@ function xpToNext(level) {
   return 50 + level * level * 10;
 };
 
-function recalcLevel(xp, level) {
+function recalcLevel(xp, level, beanz) {
   let curXp = Math.max(0, Math.floor(xp));
   let curLevel = Math.max(1, Math.floor(level));
+  let curBeanz = Math.max(0, Math.floor(beanz));
 
   while (curXp >= xpToNext(curLevel)) {
     curXp -= xpToNext(curLevel);
-    curLevel += 1;
+    curLevel += 1; // новый уровень
+    curBeanz += 10; // за каждый новый уровень +10 beanz
   }
-  return { level: curLevel, xp: curXp };
+  return { level: curLevel, xp: curXp, beanz: curBeanz };
 };
 
 // tick: пересчёт offline прогресса по last_tick_at
