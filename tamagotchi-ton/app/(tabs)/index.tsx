@@ -48,8 +48,29 @@ export default function App() {
   const [level, setLevel] = useState(1);
   const [xpToNext, setXpToNext] = useState(0);
   const [xpProgress, setXpProgress] = useState(0);
-  
-  const applyServerStats = useCallback((s: { energy: any; energyCap: any; coins: any; coinsCap: any; beanz: any; xp: any; tapMult: any; coinsRate: any; beanzRate: any; level: any; xpToNext: any; xpProgress: any; }) => {
+  const [upgBeanzLevel, setUpgBeanzLevel] = useState(0);
+  const [upgTapLevel, setUpgTapLevel] = useState(0);
+  const [upgCoinsLevel, setUpgCoinsLevel] = useState(0);
+  const [upgEnergyCapLevel, setUpgEnergyCapLevel] = useState(0);
+
+  const applyServerStats = useCallback((s: {
+    upg_energy_cap_level: number;
+    upg_coins_level: number;
+    upg_tap_level: number;
+    upg_beanz_level: number;
+    energy: any;
+    energyCap: any;
+    coins: any;
+    coinsCap: any;
+    beanz: any;
+    xp: any;
+    tapMult: any;
+    coinsRate: any;
+    beanzRate: any;
+    level: any;
+    xpToNext: any;
+    xpProgress: any; 
+  }) => {
     setEnergy(s.energy ?? 0);
     setMaxEnergy(s.energyCap ?? 100);
     setCoin(s.coins ?? 0);
@@ -59,10 +80,15 @@ export default function App() {
     setXpToNext(s.xpToNext ?? 0);
     setXpProgress(s.xpProgress ?? 0);
     setXp(s.xp ?? 0);
+    setUpgBeanzLevel(s.upg_beanz_level ?? 0);
+    setUpgTapLevel(s.upg_tap_level ?? 0);
+    setUpgCoinsLevel(s.upg_coins_level ?? 0);
+    setUpgEnergyCapLevel(s.upg_energy_cap_level ?? 0);
     
     setMultiply(s.tapMult ?? 1);
     setMultiplyCoins(s.coinsRate ?? 1);
     setBeanzMining(s.beanzRate ?? 0);
+
   }, []);
 
   const [equipped, setEquipped] = useState({
@@ -257,31 +283,49 @@ export default function App() {
         <View style={styles.upgradeGrid}>
           <TouchableOpacity onPress={multiplyPlus} style={styles.upgradeBtn}>
             <Text style={styles.upgradeBtnTitle}>+1 STEP</Text>
-            <Text style={styles.upgradeBtnSub}>×{multiply}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.upgradeBtnSub}>×{multiply}</Text>
+              <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.floor(maxCoins * 0.1)} COINS</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={multiplyMulti} style={styles.upgradeBtn}>
             <Text style={styles.upgradeBtnTitle}>×1.5 MULTI</Text>
-            <Text style={styles.upgradeBtnSub}>×{multiply}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.upgradeBtnSub}>×{multiply}</Text>
+              <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.floor(maxCoins * 0.33)} COINS</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={maxEnergyPlus} style={styles.upgradeBtn}>
             <Text style={styles.upgradeBtnTitle}>MAX ENERGY +50</Text>
-            <Text style={styles.upgradeBtnSub}>{maxEnergy}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.upgradeBtnSub}>{maxEnergy}</Text>
+              <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.floor(maxCoins * 0.7)} COINS</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={maxCoinsPlus} style={styles.upgradeBtn}>
             <Text style={styles.upgradeBtnTitle}>MAX COINS +25%</Text>
-            <Text style={styles.upgradeBtnSub}>{maxCoins}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.upgradeBtnSub}>{maxCoins}</Text>
+              <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.floor(maxCoins * 0.8)} COINS</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>MINING BEANZ</Text>
+        <Text style={styles.sectionTitle}>MINING</Text>
         <View style={styles.upgradeGrid}>
           <TouchableOpacity onPress={beanzMiningPlus} style={styles.upgradeBtn}>
             <Text style={styles.upgradeBtnTitle}>BEANZ/M +1</Text>
-            <Text style={styles.upgradeBtnSub}>×{beanzMining}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.upgradeBtnSub}>×{beanzMining}</Text>
+              <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.min(Math.floor(maxCoins * 0.50 + upgBeanzLevel * upgBeanzLevel * 10), maxCoins)} COINS</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={coinsPlus} style={styles.upgradeBtn}>
-            <Text style={styles.upgradeBtnTitle}>COIN/M +0.5</Text>
-            <Text style={styles.upgradeBtnSub}>{multiplyCoins}</Text>
+            <Text style={styles.upgradeBtnTitle}>COIN/M +0.2</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.upgradeBtnSub}>{multiplyCoins}</Text>
+              <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.floor(maxCoins * 0.9)} COINS</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -297,7 +341,6 @@ export default function App() {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

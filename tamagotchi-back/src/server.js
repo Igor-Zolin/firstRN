@@ -74,6 +74,12 @@ function toClientStats(row) {
     tapMult: row.tap_mult_x100 / 100,
     coinsRate: row.coins_rate_x100 / 100,
     beanzRate: row.beanz_rate_x1000 / 1000,
+
+    upg_beanz_level: row.upg_beanz_level,
+    upg_tap_level: row.upg_tap_level,
+    upg_coins_level: row.upg_coins_level,
+    upg_energy_cap_level: row.upg_energy_cap_level,
+
   };
 }
 const XP_BY_RARITY = {
@@ -157,11 +163,11 @@ app.post('/api/daily/claim', authenticateToken, (req, res) => {
     const last = meta.last_daily_day || 0;
     let streak = meta.daily_streak || 0;
 
-    const beanzReward = 5 + Math.min(streak * 2, 10); // базово 5 beanz + 2 за каждый день в серии (максимум 50)
     // уже получал сегодня
     if (last === today) {
       return res.json({ ok: true, claimed: false, streak, rewardXp: 0, beanzReward: 0 });
     }
+    const beanzReward = 5 + Math.min(streak * 2, 10); // базово 5 beanz + 2 за каждый день в серии (максимум 50)
 
     // подряд или сброс
     if (last === today - 1) streak += 1;
@@ -505,22 +511,26 @@ app.post('/api/actions/upgrade', authenticateToken, (req, res) => {
     const next = { ...s };
 
     if (kind === 'beanz_mining') {
-      if (coins < 20) return res.status(400).json({ error: 'Not enough coins' });
-      coins -= 20;
+      const price = Math.min(Math.floor(s.coins_cap * 0.50 + s.upg_beanz_level * s.upg_beanz_level * 10), s.coins_cap);
+      if (coins < price) return res.status(400).json({ error: 'Not enough coins' });
+      coins -= price;
       next.beanz_rate_x1000 = s.beanz_rate_x1000 + 1000; // +1.0
       next.upg_beanz_level = s.upg_beanz_level + 1;
     }
 
     if (kind === 'tap_plus') {
+      const price = 50;
       if (coins < 50) return res.status(400).json({ error: 'Not enough coins' });
-      coins -= 50;
+      coins -= price;
       next.tap_mult_x100 = s.tap_mult_x100 + 100; // +1.00
       next.upg_tap_level = s.upg_tap_level + 1;
     }
 
     if (kind === 'tap_multi') {
-      if (coins < 100) return res.status(400).json({ error: 'Not enough coins' });
-      coins -= 100;
+      const price = Math.floor(s.coins_cap * 0.33);
+
+      if (coins < price) return res.status(400).json({ error: 'Not enough coins' });
+      coins -= price;
       next.tap_mult_x100 = Math.floor(s.tap_mult_x100 * 150 / 100); // *1.5
       next.upg_tap_level = s.upg_tap_level + 1;
     }
@@ -562,7 +572,7 @@ app.post('/api/actions/upgrade', authenticateToken, (req, res) => {
       }
 
       coins -= price;
-      next.coins_rate_x100 = s.coins_rate_x100 + 10; // +0.10 coins / min
+      next.coins_rate_x100 = s.coins_rate_x100 + 20; // +0.10 coins / min
       next.upg_coins_level = s.upg_coins_level + 1;
     }
 
@@ -1152,7 +1162,6 @@ app.post('/api/dev/apply-start-equip', (req, res) => {
     );
   });
 });
-
 
 app.listen(PORT, () => {
   console.log(`[~] Server running on http://127.0.0.1:${PORT}`);
