@@ -92,6 +92,9 @@ const XP_BY_RARITY = {
   epic: 100,
   legendary: 250,
 };
+const rounded = function(number, roundTo){
+  return +number.toFixed(roundTo);
+}
 
 // стартовая экипировка (то, что выдаём со старта)
 const START_ITEMS = [37, 70, 84, 97]; // background, cloth, eyes, hat
@@ -284,9 +287,9 @@ function applyTick(userId, cb) {
       let coins = row.coins;
       if (energy > 0 && coinTicks > 0) {
         const coinsPerTick = row.coins_rate_x100 / 100; // монет за тик
-        coins += Math.floor(coinTicks * coinsPerTick);
+        coins += coinTicks * coinsPerTick;
       }
-      coins = Math.min(coins, row.coins_cap);
+      coins = Math.min(rounded(coins, 2), row.coins_cap);
 
       let beanz = row.beanz;
       const beanzPerTick = row.beanz_rate_x1000 / 1000; // beanz за тик
@@ -573,9 +576,8 @@ app.post('/api/actions/upgrade', authenticateToken, (req, res) => {
           error: `Not enough coins. Need ${price}`,
         });
       }
-
       coins -= price;
-      next.coins_rate_x100 = s.coins_rate_x100 + 20; // +0.10 coins / min
+      next.coins_rate_x100 = rounded(s.coins_rate_x100 + 20, 2); // +0.20 coins / min
       next.upg_coins_level = s.upg_coins_level + 1;
     }
 
