@@ -1,6 +1,9 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+
 export const TOKEN_KEY = 'auth_token';
 
 export const getApiBase = () => {
@@ -14,7 +17,7 @@ export const getApiBase = () => {
   // localhost for Android
   if (Platform.OS === 'android') return 'http://10.0.2.2:3000';
   // localhost's IP for iOS simulator
-  return 'http://192.168.3.72:3000';
+  return 'http://192.168.166.114:3000';
 };
 
 async function getToken() {
@@ -63,6 +66,55 @@ async function request(path, { method = 'GET', body } = {}) {
   }
 
   return data;
+}
+
+export async function downloadAvatar() {
+  const API_BASE = getApiBase();
+  const token = await AsyncStorage.getItem(TOKEN_KEY);
+
+  // ---------- WEB ----------
+  if (Platform.OS === 'web') {
+    const res = await fetch(`${API_BASE}/api/avatar/download`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'avatar.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  // ---------- iOS / Android ----------
+  const fileUri = FileSystem.cacheDirectory + `avatar_${Date.now()}.png`;
+
+  const { uri } = await FileSystem.downloadAsync(
+    `${API_BASE}/api/avatar/download`,
+    fileUri,
+    {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }
+  );
+
+  const canShare = await Sharing.isAvailableAsync();
+  if (!canShare) {
+    throw new Error('Sharing is not available on this device');
+  }
+
+  await Sharing.shareAsync(uri, {
+    mimeType: 'image/png',
+    dialogTitle: 'Save avatar',
+    UTI: 'public.png', // iOS
+  });
 }
 
 // ---- auth ----

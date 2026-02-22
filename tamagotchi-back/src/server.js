@@ -7,7 +7,10 @@ const cors = require('cors');
 
 const db = require('./database/db');
 
+const fs = require('fs');
 const path = require('path');
+
+const { Jimp } = require('jimp');
 
 
 dotenv.config();
@@ -511,7 +514,7 @@ app.post('/api/actions/upgrade', authenticateToken, (req, res) => {
     const next = { ...s };
 
     if (kind === 'beanz_mining') {
-      const price = Math.min(Math.floor(s.coins_cap * 0.50 + s.upg_beanz_level * s.upg_beanz_level * 10), s.coins_cap);
+      const price = Math.floor(s.coins_cap * 0.50 + s.upg_beanz_level * s.upg_beanz_level * 20);
       if (coins < price) return res.status(400).json({ error: 'Not enough coins' });
       coins -= price;
       next.beanz_rate_x1000 = s.beanz_rate_x1000 + 1000; // +1.0
@@ -1161,6 +1164,104 @@ app.post('/api/dev/apply-start-equip', (req, res) => {
       }
     );
   });
+});
+
+const ITEMS_DIR = path.join(__dirname, '..', 'public', 'items');
+const WIDTH = 3000;
+const HEIGHT = 3000;
+
+const LAYER_ORDER = ['background', 'weapon', 'eyes', 'cloth', 'hat'];
+
+async function renderEquippedPngBuffer(userId) {
+  // 1) достаём экип
+  const eq = await new Promise((resolve, reject) => {
+    db.get(
+      `SELECT background_item_id, weapon_item_id, eyes_item_id, cloth_item_id, hat_item_id
+       FROM user_equipped
+       WHERE user_id = ?`,
+      [userId],
+      (err, row) => (err ? reject(err) : resolve(row))
+    );
+  });
+
+  if (!eq) {
+    const e = new Error('Equipped not found');
+    e.code = 404;
+    throw e;
+  }
+
+  const slotToId = {
+    background: eq.background_item_id,
+    weapon: eq.weapon_item_id,
+    eyes: eq.eyes_item_id,
+    cloth: eq.cloth_item_id,
+    hat: eq.hat_item_id,
+  };
+
+  const orderedIds = LAYER_ORDER
+    .map((slot) => slotToId[slot])
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+  // если ничего не экипировано — пустая прозрачная картинка
+  const base = new Jimp({ width: WIDTH, height: HEIGHT, color: 0x00000000 });
+
+  if (orderedIds.length === 0) {
+    return base.getBuffer('image/png');
+  }
+
+  // 2) получаем model_name для этих item_id
+  const placeholders = orderedIds.map(() => '?').join(',');
+  const items = await new Promise((resolve, reject) => {
+    db.all(
+      `SELECT id, model_name
+       FROM items
+       WHERE id IN (${placeholders})`,
+      orderedIds,
+      (err, rows) => (err ? reject(err) : resolve(rows))
+    );
+  });
+
+  const byId = new Map(items.map((r) => [r.id, r.model_name]));
+
+  // 3) накладываем слои
+  for (const id of orderedIds) {
+    const modelName = byId.get(id);
+    if (!modelName) continue;
+
+    const filePath = path.join(ITEMS_DIR, modelName); // "hat/cat_black.PNG"
+    if (!fs.existsSync(filePath)) {
+      console.warn('[avatar] missing file:', filePath);
+      continue;
+    }
+
+    const buf = fs.readFileSync(filePath);
+    const layerImg = await Jimp.read(buf);
+
+    // если размеры иногда разные — раскомментируй:
+    // layerImg.resize(WIDTH, HEIGHT);
+
+    base.composite(layerImg, 0, 0);
+  }
+
+  return base.getBuffer('image/png');
+}
+
+app.get('/api/avatar/download', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const png = await renderEquippedPngBuffer(userId);
+
+    const fileName = `avatar_${userId}.png`;
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+
+    return res.status(200).send(png);
+  } catch (e) {
+    const code = e?.code === 404 ? 404 : 500;
+    return res.status(code).json({ error: e.message || 'Failed to generate avatar' });
+  }
 });
 
 app.listen(PORT, () => {

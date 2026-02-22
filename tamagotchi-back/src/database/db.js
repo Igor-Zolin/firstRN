@@ -55,7 +55,6 @@ db.serialize(() => {
     )
   `);
 
-
   // Таблица предметов
   db.run(`
     CREATE TABLE IF NOT EXISTS items (
@@ -101,7 +100,6 @@ db.serialize(() => {
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_items_type ON items(type)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_inventory_user ON inventory(user_id)`);
-
 });
 
 db.on('open', () => console.log('Connected to SQLite database'));
