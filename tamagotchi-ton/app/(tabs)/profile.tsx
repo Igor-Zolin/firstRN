@@ -84,9 +84,36 @@ export default function ProfileScreen() {
     }
   }, []);
 
+  const refresh = useCallback(async () => {
+    try {
+      const [eq, inv] = await Promise.all([
+        getEquippedMe(),
+        getInventoryMe(),
+      ]);
+  
+      if (eq) {
+        setEquipped({
+          backgroundItemId: eq.backgroundItemId ?? eq.background_item_id ?? null,
+          weaponItemId: eq.weaponItemId ?? eq.weapon_item_id ?? null,
+          eyesItemId: eq.eyesItemId ?? eq.eyes_item_id ?? null,
+          clothItemId: eq.clothItemId ?? eq.cloth_item_id ?? null,
+          hatItemId: eq.hatItemId ?? eq.hat_item_id ?? null,
+        });
+      }
+  
+      if (Array.isArray(inv)) setInventory(inv);
+    } catch (e) {
+      console.log(e);
+    }
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+      refresh();
+    }, [refresh]);
   
   const resetInv = async () => {
     try {
@@ -122,6 +149,14 @@ export default function ProfileScreen() {
     }
   };
 
+  useEffect(() => {
+    const id = setInterval(() => {
+      refresh();
+    }, 2500);
+
+    return () => clearInterval(id);
+  }, [refresh]);
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -129,7 +164,7 @@ export default function ProfileScreen() {
         <Text style={styles.muted}>Загрузка профиля…</Text>
       </View>
     );
-  }
+  };
 
   return (
     <View style={styles.container}>

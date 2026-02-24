@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   View,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -34,44 +35,44 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Sign in</Text>
+        <View style={styles.card}>
+          <Text style={styles.title}>Sign in</Text>
 
-        <TextInput
-          value={username}
-          onChangeText={setUsername}
-          placeholder="Username"
-          autoCapitalize="none"
-          style={styles.input}
-        />
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Username"
+            autoCapitalize="none"
+            style={styles.input}
+          />
 
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Password"
-          secureTextEntry
-          style={styles.input}
-        />
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            secureTextEntry
+            style={styles.input}
+          />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <TouchableOpacity
-          onPress={onSubmit}
-          disabled={loading}
-          style={[styles.button, loading && styles.buttonDisabled]}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? 'Signing in...' : 'Sign in'}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onSubmit}
+            disabled={loading}
+            style={[styles.button, loading && styles.buttonDisabled]}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? 'Signing in...' : 'Sign in'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-                  onPress={() => router.replace('/register')}
-                  style={styles.linkBtn}
-                >
-                  <Text style={styles.linkText}>Don't have an account? Sign up</Text>
-                </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+                    onPress={() => router.replace('/register')}
+                    style={styles.linkBtn}
+                  >
+                    <Text style={styles.linkText}>Don't have an account? Sign up</Text>
+                  </TouchableOpacity>
+        </View>
     </View>
   );
 }

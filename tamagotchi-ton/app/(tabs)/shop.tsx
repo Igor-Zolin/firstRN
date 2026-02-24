@@ -51,6 +51,12 @@ export default function ShopScreen() {
 
   const activeLabel = useMemo(() => (activeType ? activeType : 'all'), [activeType]);
 
+  const applyServerStats = useCallback((s: {
+      beanz: any;
+    }) => {
+      setBeanz(s.beanz ?? 0);
+    }, []);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -88,9 +94,25 @@ export default function ShopScreen() {
     }
   }, []);
 
+  const refresh = useCallback(async () => {
+      try {
+        const [s] = await Promise.all([
+          getMyStats(),
+        ]);
+  
+        applyServerStats(s);
+      } catch (e) {
+        console.log(e);
+      }
+    }, [applyServerStats]);
+
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+      refresh();
+    }, [refresh]);
 
   const onSelectCategory = async (type: string) => {
     setActiveType(type);
@@ -119,6 +141,14 @@ export default function ShopScreen() {
       setBuyingId(null);
     }
   };
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      refresh();
+    }, 5000);
+
+    return () => clearInterval(id);
+    }, [refresh]);
 
   if (loading) {
     return (

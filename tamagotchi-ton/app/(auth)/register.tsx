@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   View,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -129,6 +130,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
+  
 
   card: {
     width: '100%',

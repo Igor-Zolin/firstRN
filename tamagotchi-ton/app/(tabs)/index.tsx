@@ -7,7 +7,7 @@ import {
   Text,
   ScrollView,
   Platform,
-  Image,
+  Image,  
 } from 'react-native';
 import { ShaoLayers } from '@/components/ShaoLayers';
 import { getMyStats,
@@ -19,7 +19,7 @@ import { getMyStats,
   dailyClaim,
   downloadAvatar
 } from '@/src/api/client';
-import { opacity } from 'react-native-reanimated/lib/typescript/Colors';
+// import { opacity } from 'react-native-reanimated/lib/typescript/Colors';
 
 const NFT = {
   bg: '#0A0A0F',
@@ -205,7 +205,7 @@ export default function App() {
     return () => clearInterval(id);
   }, [refresh]);
 
-    return (
+  return (
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -252,12 +252,12 @@ export default function App() {
             <Text style={styles.resetBtnText}>Сохранить аватар</Text>
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-            <Link href="/modals/profile" dismissTo asChild>
-              <TouchableOpacity style={linkButtonStyle}>
-                <Link href="/modals/profile" style={styles.linkText}>INVENTORY</Link>
+            <Link href="/profile" dismissTo asChild>
+              <TouchableOpacity onPress={refresh} style={linkButtonStyle}>
+                <Link href="/profile" style={styles.linkText}>INVENTORY</Link>
               </TouchableOpacity>
             </Link>
-            <Link href="/modals/profile" dismissTo asChild>
+            <Link href="/shop" dismissTo asChild>
               <TouchableOpacity style={linkButtonStyle}>
                 <Link href="/shop" style={styles.linkText}>MARKET</Link>
               </TouchableOpacity>
