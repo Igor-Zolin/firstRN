@@ -15,9 +15,9 @@ export const getApiBase = () => {
     return 'http://localhost:3000';
   }
   // localhost for Android
-  if (Platform.OS === 'android') return 'http://172.20.10.5:3000';
+  if (Platform.OS === 'android') return 'http://192.168.3.72:3000';
   // localhost's IP for iOS simulator
-  return 'http://172.20.10.5:3000';
+  return 'http://192.168.3.72:3000';
 };
 
 async function getToken() {

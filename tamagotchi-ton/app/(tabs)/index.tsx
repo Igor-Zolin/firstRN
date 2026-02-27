@@ -114,7 +114,7 @@ export default function App() {
   const load = useCallback(async () => {
     try {
       const stats = await getMyStats();
-      applyServerStats(stats);
+      applyServerStats(stats); // Получение данных с бэка
       dailyClaim(); // попытка забрать ежедневный бонус при загрузке
     } catch (e) {
       console.log(e);
@@ -249,7 +249,7 @@ export default function App() {
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={onSaveAvatar} style={[styles.resetBtn, {marginTop: 10}]}>
-            <Text style={styles.resetBtnText}>Сохранить аватар</Text>
+            <Text style={styles.resetBtnText}>MINT AVATAR</Text>
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
             <Link href="/profile" dismissTo asChild>
@@ -352,10 +352,10 @@ export default function App() {
 
         <View style={styles.upgradeGrid}>
           <TouchableOpacity onPress={resetAll} style={styles.resetBtn}>
-            <Text style={styles.resetBtnText}>Сбросить прогресс</Text>
+            <Text style={styles.resetBtnText}>Reset progress</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={CheatCode} style={styles.resetBtn}>
-            <Text style={styles.resetBtnText}>Чит-код</Text>
+            <Text style={styles.resetBtnText}>Cheat-code</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
