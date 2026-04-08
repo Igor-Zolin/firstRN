@@ -11,6 +11,7 @@ import {
   TextInput,
   Platform
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { getShopCategories, getShopItems, buyItem, getMyStats } from '../../src/api/client';
 
 const NFT = {
@@ -58,6 +59,7 @@ function confirmBuy(item: ShopItem): Promise<boolean> {
 
 export default function ShopScreen() {
   const [loading, setLoading] = useState(true);
+  const [itemsLoading, setItemsLoading] = useState(false);
   const [buyingId, setBuyingId] = useState<number | null>(null);
 
   const [beanz, setBeanz] = useState(0);
@@ -88,7 +90,6 @@ export default function ShopScreen() {
 
       const shopItems = await getShopItems({
         ...(defaultType ? { type: defaultType } : {}),
-        ...(searchQuery ? { q: searchQuery } : {}),
       });
       setItems(Array.isArray(shopItems) ? shopItems : []);
     } catch (e: any) {
@@ -97,25 +98,21 @@ export default function ShopScreen() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery]);
+  }, []);
 
   const loadItems = useCallback(async (type: string, query: string = searchQuery) => {
-    setLoading(true);
+    setItemsLoading(true);
     try {
-      const [stats, shopItems] = await Promise.all([
-        getMyStats(),
-        getShopItems({
-          ...(type ? { type } : {}),
-          ...(query ? { q: query } : {}),
-        }),
-      ]);
-      setBeanz(stats?.beanz ?? 0);
+      const shopItems = await getShopItems({
+        ...(type ? { type } : {}),
+        ...(query ? { q: query } : {}),
+      });
       setItems(Array.isArray(shopItems) ? shopItems : []);
     } catch (e: any) {
       console.log(e);
       Alert.alert('Ошибка', e?.message ?? 'Не удалось загрузить товары');
     } finally {
-      setLoading(false);
+      setItemsLoading(false);
     }
   }, [searchQuery]);
 
@@ -135,9 +132,16 @@ export default function ShopScreen() {
     loadAll();
   }, [loadAll]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      const id = setInterval(() => {
+        refresh();
+      }, 8000);
+
+      return () => clearInterval(id);
+    }, [refresh])
+  );
 
   const onSelectCategory = async (type: string) => {
     setActiveType(type);
@@ -193,14 +197,6 @@ export default function ShopScreen() {
       setBuyingId(null);
     }
   };
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      refresh();
-    }, 5000);
-
-    return () => clearInterval(id);
-    }, [refresh]);
 
   if (loading) {
     return (
@@ -265,6 +261,13 @@ export default function ShopScreen() {
 
       {/* Items grid */}
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+        {itemsLoading ? (
+          <View style={styles.loadingInline}>
+            <ActivityIndicator />
+            <Text style={styles.muted}>Обновляем товары...</Text>
+          </View>
+        ) : null}
+
         {items.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.muted}>В этой категории нет доступных предметов.</Text>
@@ -443,4 +446,11 @@ const styles = StyleSheet.create({
   empty: { width: '100%', paddingTop: 40, alignItems: 'center', gap: 6 },
   muted: { color: NFT.textMuted, fontWeight: '600' },
   mutedSmall: { color: NFT.textMuted, fontSize: 12 },
+  loadingInline: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 8,
+  },
 });

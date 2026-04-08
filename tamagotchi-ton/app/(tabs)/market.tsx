@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   buyFromMarket,
   cancelMarketListing,
@@ -145,17 +146,22 @@ export default function MarketScreen() {
     loadAll();
   }, [loadAll]);
 
-  useEffect(() => {
-    const id = setInterval(async () => {
-      try {
-        const stats = await getMyStats();
-        setBeanz(stats?.beanz ?? 0);
-      } catch {
-        // ignore polling errors
-      }
-    }, 5000);
-    return () => clearInterval(id);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const refreshFocusedData = async () => {
+        try {
+          const [stats] = await Promise.all([getMyStats(), refreshListings()]);
+          setBeanz(stats?.beanz ?? 0);
+        } catch {
+          // ignore focus refresh errors
+        }
+      };
+
+      refreshFocusedData();
+      const id = setInterval(refreshFocusedData, 10000);
+      return () => clearInterval(id);
+    }, [refreshListings])
+  );
 
   const onCreateListing = async () => {
     if (!selectedItem) {

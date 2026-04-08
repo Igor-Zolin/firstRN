@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import React, { useState, useEffect, useCallback  } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { ShaoLayers } from '@/components/ShaoLayers';
 import { getMyStats,
   tap,
@@ -102,16 +103,7 @@ export default function App() {
   });
 
   const [inventory, setInventory] = useState<any[]>([]);
-  
-  const load = useCallback(async () => {
-    try {
-      const stats = await getMyStats();
-      applyServerStats(stats); // Получение данных с бэка
-      await dailyClaim().catch(() => null); // попытка забрать ежедневный бонус при загрузке
-    } catch (e) {
-      console.log(e);
-    }
-  }, [applyServerStats]);
+  const dailyClaimDayRef = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -139,29 +131,71 @@ export default function App() {
     }
   }, [applyServerStats]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const refreshStatsOnly = useCallback(async () => {
+    try {
+      const stats = await getMyStats();
+      applyServerStats(stats);
+    } catch (e) {
+      console.log(e);
+    }
+  }, [applyServerStats]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const tryDailyClaim = useCallback(async () => {
+    const dayUtc = Math.floor(Date.now() / 86400000);
+    if (dailyClaimDayRef.current === dayUtc) return;
+    dailyClaimDayRef.current = dayUtc;
+
+    try {
+      const daily = await dailyClaim();
+      if (daily?.claimed) {
+        await refreshStatsOnly();
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  }, [refreshStatsOnly]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      tryDailyClaim();
+
+      const id = setInterval(() => {
+        refreshStatsOnly();
+      }, 8000);
+
+      return () => clearInterval(id);
+    }, [refresh, refreshStatsOnly, tryDailyClaim])
+  );
 
   // handlers (только заменяем логику, JSX не трогаем)
   const handleValueChange = async () => {
-    await tap();
-    await refresh();
+    try {
+      const stats = await tap();
+      applyServerStats(stats);
+    } catch (e) {
+      console.log(e);
+    }
   };
 
-  const multiplyPlus = async () => { await upgrade('tap_plus'); await refresh(); };
-  const multiplyMulti = async () => { await upgrade('tap_multi'); await refresh(); };
-  const maxEnergyPlus = async () => { await upgrade('cap_energy'); await refresh(); };
-  const coinsPlus = async () => { await upgrade('coin_rate'); await refresh(); };
-  const beanzMiningPlus = async () => { await upgrade('beanz_mining'); await refresh(); };
-  const maxCoinsPlus = async () => { await upgrade('cap_coins'); await refresh(); }
+  const runAction = useCallback(async (action: () => Promise<any>) => {
+    try {
+      const stats = await action();
+      applyServerStats(stats);
+    } catch (e) {
+      console.log(e);
+    }
+  }, [applyServerStats]);
 
-  const resetAll = async () => { await resetProgress(); await refresh(); };
-  const CheatCode = async () => { await cheat(); await refresh(); };
+  const multiplyPlus = async () => { await runAction(() => upgrade('tap_plus')); };
+  const multiplyMulti = async () => { await runAction(() => upgrade('tap_multi')); };
+  const maxEnergyPlus = async () => { await runAction(() => upgrade('cap_energy')); };
+  const coinsPlus = async () => { await runAction(() => upgrade('coin_rate')); };
+  const beanzMiningPlus = async () => { await runAction(() => upgrade('beanz_mining')); };
+  const maxCoinsPlus = async () => { await runAction(() => upgrade('cap_coins')); };
+
+  const resetAll = async () => { await runAction(resetProgress); };
+  const CheatCode = async () => { await runAction(cheat); };
 
   const fillWidth = Math.min(100, (energy / Math.max(1, maxEnergy)) * 100);
 
@@ -188,14 +222,6 @@ export default function App() {
       // alert(e.message ?? 'Не удалось сохранить аватар');
     }
   };
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      refresh();
-    }, 5000);
-
-    return () => clearInterval(id);
-  }, [refresh]);
 
   return (
     <View style={styles.container}>

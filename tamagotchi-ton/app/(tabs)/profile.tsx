@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { getInventoryMe, getEquippedMe, equipItem, resetInventory } from '../../src/api/client';
 
@@ -46,6 +47,16 @@ type Equipped = {
   clothItemId: number | null;
   hatItemId: number | null;
 };
+
+function normalizeEquipped(eq: any): Equipped {
+  return {
+    backgroundItemId: eq?.backgroundItemId ?? eq?.background_item_id ?? null,
+    weaponItemId: eq?.weaponItemId ?? eq?.weapon_item_id ?? null,
+    eyesItemId: eq?.eyesItemId ?? eq?.eyes_item_id ?? null,
+    clothItemId: eq?.clothItemId ?? eq?.cloth_item_id ?? null,
+    hatItemId: eq?.hatItemId ?? eq?.hat_item_id ?? null,
+  };
+}
 
 export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
@@ -88,7 +99,7 @@ export default function ProfileScreen() {
     try {
       const [inv, eq] = await Promise.all([getInventoryMe(), getEquippedMe()]);
       setInventory(Array.isArray(inv) ? inv : []);
-      setEquipped(eq || {});
+      setEquipped(normalizeEquipped(eq));
     } catch (e: any) {
       console.log(e);
       Alert.alert('Ошибка', e?.message ?? 'Не удалось загрузить профиль');
@@ -104,15 +115,7 @@ export default function ProfileScreen() {
         getInventoryMe(),
       ]);
   
-      if (eq) {
-        setEquipped({
-          backgroundItemId: eq.backgroundItemId ?? eq.background_item_id ?? null,
-          weaponItemId: eq.weaponItemId ?? eq.weapon_item_id ?? null,
-          eyesItemId: eq.eyesItemId ?? eq.eyes_item_id ?? null,
-          clothItemId: eq.clothItemId ?? eq.cloth_item_id ?? null,
-          hatItemId: eq.hatItemId ?? eq.hat_item_id ?? null,
-        });
-      }
+      setEquipped(normalizeEquipped(eq));
   
       if (Array.isArray(inv)) setInventory(inv);
     } catch (e) {
@@ -130,15 +133,22 @@ export default function ProfileScreen() {
     load();
   }, [load]);
 
-  useEffect(() => {
+  useFocusEffect(
+    useCallback(() => {
       refresh();
-    }, [refresh]);
+      const id = setInterval(() => {
+        refresh();
+      }, 10000);
+
+      return () => clearInterval(id);
+    }, [refresh])
+  );
   
   const resetInv = async () => {
     try {
       const r = await resetInventory();
       console.log('reset-inv result:', r);
-      await load();
+      await refresh();
     } catch (e: any) {
       console.log('reset-inv error:', e);
       alert(String(e?.message || e));
@@ -156,10 +166,10 @@ export default function ProfileScreen() {
       return;
     }
 
-    setEquipping(it.item_id);
+      setEquipping(it.item_id);
     try {
       const resp = await equipItem(slot, it.item_id);
-      if (resp?.equipped) setEquipped(resp.equipped);
+      if (resp?.equipped) setEquipped(normalizeEquipped(resp.equipped));
     } catch (e: any) {
       console.log(e);
       Alert.alert('Ошибка экипировки', e?.message ?? 'Не удалось экипировать');
@@ -167,14 +177,6 @@ export default function ProfileScreen() {
       setEquipping(null);
     }
   };
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      refresh();
-    }, 2500);
-
-    return () => clearInterval(id);
-  }, [refresh]);
 
   if (loading) {
     return (
