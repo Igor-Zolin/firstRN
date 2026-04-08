@@ -7,6 +7,9 @@ import * as Sharing from 'expo-sharing';
 export const TOKEN_KEY = 'auth_token';
 
 export const getApiBase = () => {
+  const explicitBase = process.env.EXPO_PUBLIC_API_BASE_URL;
+  if (explicitBase) return explicitBase;
+
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && window?.location) {
       const { protocol, hostname } = window.location;
@@ -14,7 +17,7 @@ export const getApiBase = () => {
     }
     return 'http://localhost:3000';
   }
-  // localhost for Android
+  // Android emulator loopback to host machine.
   if (Platform.OS === 'android') return 'http://192.168.3.72:3000';
   // localhost's IP for iOS simulator
   return 'http://192.168.3.72:3000';
@@ -191,6 +194,39 @@ export async function getShopItems(params = {}) {
 
 export async function buyItem(itemId) {
   return request('/api/shop/buy', { method: 'POST', body: { itemId } });
+}
+
+// ---- secondary market ----
+export async function getMarketSellable() {
+  return request('/api/market/sellable');
+}
+
+export async function getMarketListings(params = {}) {
+  const q = new URLSearchParams();
+  if (params.limit) q.set('limit', String(params.limit));
+  if (params.offset) q.set('offset', String(params.offset));
+  const qs = q.toString();
+  return request(`/api/market/listings${qs ? `?${qs}` : ''}`);
+}
+
+export async function getMyMarketListings(params = {}) {
+  const q = new URLSearchParams();
+  if (params.limit) q.set('limit', String(params.limit));
+  if (params.offset) q.set('offset', String(params.offset));
+  const qs = q.toString();
+  return request(`/api/market/my-listings${qs ? `?${qs}` : ''}`);
+}
+
+export async function createMarketListing(payload) {
+  return request('/api/market/listings', { method: 'POST', body: payload });
+}
+
+export async function cancelMarketListing(listingId) {
+  return request(`/api/market/listings/${listingId}/cancel`, { method: 'POST' });
+}
+
+export async function buyFromMarket(listingId, quantity = 1) {
+  return request('/api/market/buy', { method: 'POST', body: { listingId, quantity } });
 }
 
 export async function getInventoryMe() {

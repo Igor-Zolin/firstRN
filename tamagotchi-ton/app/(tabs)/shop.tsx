@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  TextInput,
   Platform
 } from 'react-native';
 import { getShopCategories, getShopItems, buyItem, getMyStats } from '../../src/api/client';
@@ -40,6 +41,21 @@ type ShopItem = {
   imageUrl: string;
 };
 
+function confirmBuy(item: ShopItem): Promise<boolean> {
+  const message = `${item.name}\nЦена: ${item.price} BEANZ`;
+
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return Promise.resolve(window.confirm(`Подтвердить покупку?\n\n${message}`));
+  }
+
+  return new Promise((resolve) => {
+    Alert.alert('Подтверждение покупки', message, [
+      { text: 'Отмена', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Купить', onPress: () => resolve(true) },
+    ]);
+  });
+}
+
 export default function ShopScreen() {
   const [loading, setLoading] = useState(true);
   const [buyingId, setBuyingId] = useState<number | null>(null);
@@ -49,6 +65,8 @@ export default function ShopScreen() {
   const [categories, setCategories] = useState<string[]>([]);
   const [activeType, setActiveType] = useState<string>('');
   const [items, setItems] = useState<ShopItem[]>([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const activeLabel = useMemo(() => (activeType ? activeType : 'all'), [activeType]);
 
@@ -68,7 +86,10 @@ export default function ShopScreen() {
       const defaultType = (cats && cats.length > 0) ? cats[0] : '';
       setActiveType(defaultType);
 
-      const shopItems = await getShopItems(defaultType ? { type: defaultType } : {});
+      const shopItems = await getShopItems({
+        ...(defaultType ? { type: defaultType } : {}),
+        ...(searchQuery ? { q: searchQuery } : {}),
+      });
       setItems(Array.isArray(shopItems) ? shopItems : []);
     } catch (e: any) {
       console.log(e);
@@ -76,14 +97,17 @@ export default function ShopScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchQuery]);
 
-  const loadItems = useCallback(async (type: string) => {
+  const loadItems = useCallback(async (type: string, query: string = searchQuery) => {
     setLoading(true);
     try {
       const [stats, shopItems] = await Promise.all([
         getMyStats(),
-        getShopItems(type ? { type } : {}),
+        getShopItems({
+          ...(type ? { type } : {}),
+          ...(query ? { q: query } : {}),
+        }),
       ]);
       setBeanz(stats?.beanz ?? 0);
       setItems(Array.isArray(shopItems) ? shopItems : []);
@@ -93,7 +117,7 @@ export default function ShopScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchQuery]);
 
   const refresh = useCallback(async () => {
     try {
@@ -117,7 +141,19 @@ export default function ShopScreen() {
 
   const onSelectCategory = async (type: string) => {
     setActiveType(type);
-    await loadItems(type);
+    await loadItems(type, searchQuery);
+  };
+
+  const onApplySearch = async () => {
+    const next = searchInput.trim();
+    setSearchQuery(next);
+    await loadItems(activeType, next);
+  };
+
+  const onResetSearch = async () => {
+    setSearchInput('');
+    setSearchQuery('');
+    await loadItems(activeType, '');
   };
 
   const onBuy = async (item: ShopItem) => {
@@ -129,12 +165,27 @@ export default function ShopScreen() {
       return;
     }
 
+    const approved = await confirmBuy(item);
+    if (!approved) return;
+
     setBuyingId(item.id);
     try {
-      await buyItem(item.id);
+      const resp: any = await buyItem(item.id);
+      const nextSupply =
+        typeof resp?.remainingSupply === 'number'
+          ? resp.remainingSupply
+          : Math.max(0, item.supply - 1);
+      const spent = typeof resp?.spent === 'number' ? resp.spent : item.price;
 
-      // после покупки: обновляем beanz + список товаров (купленное пропадёт)
-      await loadItems(activeType);
+      setItems((prev) =>
+        prev.map((it) => (it.id === item.id ? { ...it, supply: nextSupply } : it))
+      );
+
+      if (typeof resp?.stats?.beanz === 'number') {
+        setBeanz(resp.stats.beanz);
+      } else {
+        setBeanz((prev) => Math.max(0, prev - spent));
+      }
     } catch (e: any) {
       console.log(e);
       Alert.alert('Покупка не удалась', e?.message ?? 'Ошибка');
@@ -192,6 +243,26 @@ export default function ShopScreen() {
         })}
       </View>
 
+      <View style={styles.searchRow}>
+        <TextInput
+          value={searchInput}
+          onChangeText={setSearchInput}
+          placeholder="Поиск по названию или файлу"
+          placeholderTextColor={NFT.textMuted}
+          style={styles.searchInput}
+          onSubmitEditing={onApplySearch}
+          returnKeyType="search"
+        />
+        <TouchableOpacity style={styles.searchBtn} onPress={onApplySearch}>
+          <Text style={styles.searchBtnText}>Search</Text>
+        </TouchableOpacity>
+        {searchQuery ? (
+          <TouchableOpacity style={styles.clearBtn} onPress={onResetSearch}>
+            <Text style={styles.clearBtnText}>Clear</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
       {/* Items grid */}
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
         {items.length === 0 ? (
@@ -237,7 +308,7 @@ const styles = StyleSheet.create({
     backgroundColor: NFT.bg,
     padding: 16,
     ...Platform.select({
-          web: { paddingTopTop: 0 },
+          web: { paddingTop: 0 },
           default: { paddingTop: 50 }
         })
   },
@@ -284,6 +355,41 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: NFT.card, borderColor: NFT.cyanDim },
   tabText: { color: NFT.textMuted, fontSize: 12, fontWeight: '700' },
   tabTextActive: { color: NFT.cyan },
+
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: NFT.cardBorder,
+    backgroundColor: NFT.surface,
+    color: NFT.text,
+    paddingHorizontal: 12,
+  },
+  searchBtn: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: NFT.purpleDim,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  searchBtnText: { color: NFT.text, fontWeight: '700', fontSize: 12 },
+  clearBtn: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: NFT.cardBorder,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  clearBtnText: { color: NFT.textMuted, fontWeight: '700', fontSize: 12 },
 
   grid: {
     paddingBottom: 30,

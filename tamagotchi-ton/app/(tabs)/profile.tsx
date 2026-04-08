@@ -50,6 +50,7 @@ type Equipped = {
 export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [equipping, setEquipping] = useState<number | null>(null);
+  const [activeType, setActiveType] = useState<string>('all');
 
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [equipped, setEquipped] = useState<Equipped>({
@@ -69,6 +70,18 @@ export default function ProfileScreen() {
     if (equipped.hatItemId) m.set(equipped.hatItemId, 'hat');
     return m;
   }, [equipped]);
+
+  const categories = useMemo(() => {
+    const types = Array.from(new Set(inventory.map((it) => it.type))).sort((a, b) =>
+      a.localeCompare(b)
+    );
+    return ['all', ...types];
+  }, [inventory]);
+
+  const filteredInventory = useMemo(() => {
+    if (activeType === 'all') return inventory;
+    return inventory.filter((it) => it.type === activeType);
+  }, [inventory, activeType]);
   
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +119,12 @@ export default function ProfileScreen() {
       console.log(e);
     }
   }, []);
+
+  useEffect(() => {
+    if (!categories.includes(activeType)) {
+      setActiveType('all');
+    }
+  }, [categories, activeType]);
 
   useEffect(() => {
     load();
@@ -172,6 +191,7 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <Text style={styles.headerLabel}>PROFILE</Text>
         <Text style={styles.headerTitle}>Inventory</Text>
+        <Text style={styles.headerSub}>Category: {activeType}</Text>
 
         <View style={styles.equippedRow}>
           <EquippedBadge label="BG" value={equipped.backgroundItemId} />
@@ -182,13 +202,30 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <View style={styles.tabs}>
+        {categories.map((c) => {
+          const active = c === activeType;
+          return (
+            <TouchableOpacity
+              key={c}
+              onPress={() => setActiveType(c)}
+              style={[styles.tab, active && styles.tabActive]}
+            >
+              <Text style={[styles.tabText, active && styles.tabTextActive]}>{c}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
-        {inventory.length === 0 ? (
+        {filteredInventory.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.muted}>Инвентарь пуст.</Text>
+            <Text style={styles.muted}>
+              {inventory.length === 0 ? 'Инвентарь пуст.' : 'В этой категории нет предметов.'}
+            </Text>
           </View>
         ) : (
-          inventory.map((it) => {
+          filteredInventory.map((it) => {
             const isEquipped = equippedMap.has(it.item_id);
 
             return (
@@ -245,8 +282,29 @@ const styles = StyleSheet.create({
   header: { marginBottom: 12 },
   headerLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 3, color: NFT.cyanDim },
   headerTitle: { fontSize: 26, fontWeight: '800', color: NFT.text, marginTop: 4 },
+  headerSub: { fontSize: 12, color: NFT.textMuted, marginTop: 6 },
 
   equippedRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 12 },
+
+  tabs: {
+    marginBottom: 12,
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tab: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: NFT.cardBorder,
+    backgroundColor: 'transparent',
+  },
+  tabActive: { backgroundColor: NFT.card, borderColor: NFT.cyanDim },
+  tabText: { color: NFT.textMuted, fontSize: 12, fontWeight: '700' },
+  tabTextActive: { color: NFT.cyan },
 
   badge: {
     backgroundColor: NFT.card,

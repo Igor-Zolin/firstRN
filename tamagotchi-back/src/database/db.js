@@ -1,9 +1,11 @@
-const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 
 const db = new sqlite3.Database('./db.sqlite');
 
 db.serialize(() => {
+  // SQLite does not enforce FK constraints unless this is enabled per connection.
+  db.run(`PRAGMA foreign_keys = ON`);
+
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,6 +85,20 @@ db.serialize(() => {
       UNIQUE(user_id, item_id)
     )
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS market_listings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      seller_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      price_per_unit INTEGER NOT NULL,
+      quantity_total INTEGER NOT NULL,
+      quantity_left INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    )
+  `);
   
   db.run(`
     CREATE TABLE IF NOT EXISTS user_equipped (
@@ -101,6 +117,8 @@ db.serialize(() => {
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_items_type ON items(type)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_inventory_user ON inventory(user_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_market_status ON market_listings(status, created_at DESC)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_market_seller ON market_listings(seller_user_id, status)`);
 });
 
 db.on('open', () => console.log('Connected to SQLite database'));

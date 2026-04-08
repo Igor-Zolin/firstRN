@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -70,7 +69,7 @@ export default function LoginScreen() {
                     onPress={() => router.replace('/register')}
                     style={styles.linkBtn}
                   >
-                    <Text style={styles.linkText}>Don't have an account? Sign up</Text>
+                    <Text style={styles.linkText}>Don&apos;t have an account? Sign up</Text>
                   </TouchableOpacity>
         </View>
     </View>

@@ -57,9 +57,6 @@ export default function App() {
   const [xpToNext, setXpToNext] = useState(0);
   const [xpProgress, setXpProgress] = useState(0);
   const [upgBeanzLevel, setUpgBeanzLevel] = useState(0);
-  const [upgTapLevel, setUpgTapLevel] = useState(0);
-  const [upgCoinsLevel, setUpgCoinsLevel] = useState(0);
-  const [upgEnergyCapLevel, setUpgEnergyCapLevel] = useState(0);
 
   const applyServerStats = useCallback((s: {
     upg_energy_cap_level: number;
@@ -89,9 +86,6 @@ export default function App() {
     setXpProgress(s.xpProgress ?? 0);
     setXp(s.xp ?? 0);
     setUpgBeanzLevel(s.upg_beanz_level ?? 0);
-    setUpgTapLevel(s.upg_tap_level ?? 0);
-    setUpgCoinsLevel(s.upg_coins_level ?? 0);
-    setUpgEnergyCapLevel(s.upg_energy_cap_level ?? 0);
     
     setMultiply(s.tapMult ?? 1);
     setMultiplyCoins(s.coinsRate ?? 1);
@@ -113,7 +107,7 @@ export default function App() {
     try {
       const stats = await getMyStats();
       applyServerStats(stats); // Получение данных с бэка
-      dailyClaim(); // попытка забрать ежедневный бонус при загрузке
+      await dailyClaim().catch(() => null); // попытка забрать ежедневный бонус при загрузке
     } catch (e) {
       console.log(e);
     }
@@ -414,7 +408,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: NFT.bg,
     ...Platform.select({
-      web: { paddingTopTop: 0 },
+      web: { paddingTop: 0 },
       default: { paddingTop: 35 }
     })
   },
