@@ -6,6 +6,7 @@ import React from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '../src/auth/AuthContext';
+// import { TonConnectProvider } from '../src/ton/TonConnectContext';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -16,10 +17,14 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
+      {/* TON disabled temporarily:
+      <TonConnectProvider>
+      */}
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }} />
         <StatusBar style="auto" />
       </ThemeProvider>
+      {/* </TonConnectProvider> */}
     </AuthProvider>
   );
 }

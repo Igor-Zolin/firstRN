@@ -100,7 +100,9 @@ function registerAuthRoutes(app, deps) {
 
   app.get('/api/auth/me', authenticateToken, (req, res) => {
     db.get(
-      `SELECT id, username, email, created_at FROM users WHERE id = ?`,
+      `SELECT id, username, email, created_at
+       FROM users
+       WHERE id = ?`,
       [req.user.id],
       (err, user) => {
         if (err) {

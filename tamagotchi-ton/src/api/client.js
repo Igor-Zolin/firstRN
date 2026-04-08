@@ -209,9 +209,47 @@ export async function logout() {
   await clearToken();
 }
 
+// ---- ton ----
+export async function getTonConfig() {
+  // return request('/api/ton/config', { cacheTtlMs: 5 * 60 * 1000 });
+  return { disabled: true };
+}
+
+export async function getTonWalletMe() {
+  // return request('/api/ton/wallet/me', { cacheTtlMs: 2000 });
+  return { walletAddress: null, connectedAt: null };
+}
+
+export async function saveTonWalletMe(walletAddress) {
+  // return request('/api/ton/wallet/me', {
+  //   method: 'PUT',
+  //   body: { walletAddress: walletAddress ?? null },
+  // });
+  return { walletAddress: walletAddress ?? null, connectedAt: null };
+}
+
 // ---- stats ----
 export async function getMyStats() {
   return request('/api/stats/me', { cacheTtlMs: 1000 });
+}
+
+export async function getHomeSnapshot() {
+  return request('/api/snapshot/home', { cacheTtlMs: 1000 });
+}
+
+export async function getProfileSnapshot() {
+  return request('/api/snapshot/profile', { cacheTtlMs: 1200 });
+}
+
+export async function getMarketSnapshot(params = {}) {
+  const q = new URLSearchParams();
+  if (params.mode) q.set('mode', String(params.mode));
+  if (params.limit) q.set('limit', String(params.limit));
+  if (params.offset) q.set('offset', String(params.offset));
+  const qs = q.toString();
+  return request(`/api/snapshot/market${qs ? `?${qs}` : ''}`, {
+    cacheTtlMs: params.mode === 'focus' ? 1000 : 1200,
+  });
 }
 
 // ---- actions ----

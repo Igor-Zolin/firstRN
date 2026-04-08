@@ -5,6 +5,10 @@ const db = new sqlite3.Database('./db.sqlite');
 db.serialize(() => {
   // SQLite does not enforce FK constraints unless this is enabled per connection.
   db.run(`PRAGMA foreign_keys = ON`);
+  db.run(`PRAGMA journal_mode = WAL`);
+  db.run(`PRAGMA synchronous = NORMAL`);
+  db.run(`PRAGMA temp_store = MEMORY`);
+  db.run(`PRAGMA busy_timeout = 5000`);
 
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -116,9 +120,55 @@ db.serialize(() => {
   db.run(`CREATE INDEX IF NOT EXISTS idx_equipped_user ON user_equipped(user_id)`);
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_items_type ON items(type)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_items_rarity_price_id ON items(rarity, price, id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_inventory_user ON inventory(user_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_market_status ON market_listings(status, created_at DESC)`);
+  db.run(
+    `CREATE INDEX IF NOT EXISTS idx_market_status_qty_created
+     ON market_listings(status, quantity_left, created_at DESC, id DESC)`
+  );
   db.run(`CREATE INDEX IF NOT EXISTS idx_market_seller ON market_listings(seller_user_id, status)`);
+
+  // TON migrations/indexes are temporarily disabled.
+  // const ensureUsersTonIndex = () => {
+  //   db.run(
+  //     `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ton_wallet_address
+  //      ON users(ton_wallet_address)
+  //      WHERE ton_wallet_address IS NOT NULL`
+  //   );
+  // };
+  // const ensureMarketTonIndex = () => {
+  //   db.run(
+  //     `CREATE INDEX IF NOT EXISTS idx_market_currency
+  //      ON market_listings(settlement_currency, status)`
+  //   );
+  // };
+  //
+  // db.run(`ALTER TABLE users ADD COLUMN ton_wallet_address TEXT`, (err) => {
+  //   if (err && !String(err.message).includes('duplicate column name')) {
+  //     console.error('Migration error (users.ton_wallet_address):', err.message);
+  //   }
+  //   ensureUsersTonIndex();
+  // });
+  // db.run(`ALTER TABLE users ADD COLUMN ton_wallet_connected_at INTEGER`, (err) => {
+  //   if (err && !String(err.message).includes('duplicate column name')) {
+  //     console.error('Migration error (users.ton_wallet_connected_at):', err.message);
+  //   }
+  // });
+  // db.run(
+  //   `ALTER TABLE market_listings ADD COLUMN settlement_currency TEXT NOT NULL DEFAULT 'beanz'`,
+  //   (err) => {
+  //     if (err && !String(err.message).includes('duplicate column name')) {
+  //       console.error('Migration error (market_listings.settlement_currency):', err.message);
+  //     }
+  //     ensureMarketTonIndex();
+  //   }
+  // );
+  // db.run(`ALTER TABLE market_listings ADD COLUMN price_per_unit_ton_nano TEXT`, (err) => {
+  //   if (err && !String(err.message).includes('duplicate column name')) {
+  //     console.error('Migration error (market_listings.price_per_unit_ton_nano):', err.message);
+  //   }
+  // });
 });
 
 db.on('open', () => console.log('Connected to SQLite database'));

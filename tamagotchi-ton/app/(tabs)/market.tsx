@@ -16,11 +16,10 @@ import {
   buyFromMarket,
   cancelMarketListing,
   createMarketListing,
-  getMarketListings,
-  getMarketSellable,
-  getMyMarketListings,
-  getMyStats,
+  getMarketSnapshot,
 } from '@/src/api/client';
+// import { TonWalletCard } from '@/src/components/ton-wallet-card';
+// import { getMarketCurrencyMode } from '@/src/ton/config';
 
 type SellableItem = {
   item_id: number;
@@ -76,6 +75,8 @@ function confirmAction(title: string, message: string): Promise<boolean> {
 }
 
 export default function MarketScreen() {
+  // TON market mode is temporarily disabled.
+  // const marketCurrencyMode = useMemo(() => getMarketCurrencyMode(), []);
   const [loading, setLoading] = useState(true);
   const [beanz, setBeanz] = useState(0);
   const [sellable, setSellable] = useState<SellableItem[]>([]);
@@ -103,19 +104,16 @@ export default function MarketScreen() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [stats, s, p, mine] = await Promise.all([
-        getMyStats(),
-        getMarketSellable(),
-        getMarketListings(),
-        getMyMarketListings(),
-      ]);
-
-      setBeanz(stats?.beanz ?? 0);
-      setSellable(Array.isArray(s) ? s : []);
-      setListings(Array.isArray(p) ? p : []);
-      setMyListings(Array.isArray(mine) ? mine : []);
+      const snapshot = await getMarketSnapshot();
+      setBeanz(snapshot?.stats?.beanz ?? 0);
+      const s: SellableItem[] = Array.isArray(snapshot?.sellable) ? snapshot.sellable : [];
+      const p = Array.isArray(snapshot?.listings) ? snapshot.listings : [];
+      const mine = Array.isArray(snapshot?.myListings) ? snapshot.myListings : [];
+      setSellable(s);
+      setListings(p);
+      setMyListings(mine);
       setSelectedItemId((prev) => {
-        const normalized = Array.isArray(s) ? s : [];
+        const normalized: SellableItem[] = s;
         if (prev && normalized.some((it) => it.item_id === prev)) return prev;
         return normalized.length > 0 ? normalized[0].item_id : null;
       });
@@ -127,15 +125,19 @@ export default function MarketScreen() {
   }, []);
 
   const refreshListings = useCallback(async () => {
-    const [p, mine] = await Promise.all([getMarketListings(), getMyMarketListings()]);
-    setListings(Array.isArray(p) ? p : []);
-    setMyListings(Array.isArray(mine) ? mine : []);
+    const snapshot = await getMarketSnapshot({ mode: 'focus' });
+    setBeanz(snapshot?.stats?.beanz ?? 0);
+    setListings(Array.isArray(snapshot?.listings) ? snapshot.listings : []);
+    setMyListings(Array.isArray(snapshot?.myListings) ? snapshot.myListings : []);
   }, []);
 
   const refreshSellable = useCallback(async () => {
-    const s = await getMarketSellable();
-    const normalized = Array.isArray(s) ? s : [];
+    const snapshot = await getMarketSnapshot();
+    const normalized: SellableItem[] = Array.isArray(snapshot?.sellable) ? snapshot.sellable : [];
     setSellable(normalized);
+    if (Array.isArray(snapshot?.listings)) setListings(snapshot.listings);
+    if (Array.isArray(snapshot?.myListings)) setMyListings(snapshot.myListings);
+    if (snapshot?.stats?.beanz != null) setBeanz(snapshot.stats.beanz);
     setSelectedItemId((prev) => {
       if (prev && normalized.some((it) => it.item_id === prev)) return prev;
       return normalized.length > 0 ? normalized[0].item_id : null;
@@ -150,8 +152,7 @@ export default function MarketScreen() {
     useCallback(() => {
       const refreshFocusedData = async () => {
         try {
-          const [stats] = await Promise.all([getMyStats(), refreshListings()]);
-          setBeanz(stats?.beanz ?? 0);
+          await refreshListings();
         } catch {
           // ignore focus refresh errors
         }
@@ -200,7 +201,7 @@ export default function MarketScreen() {
       });
 
       setQtyInput('1');
-      await Promise.all([refreshSellable(), refreshListings()]);
+      await refreshSellable();
     } catch (e: any) {
       Alert.alert('Не удалось выставить лот', e?.message ?? 'Ошибка');
     } finally {
@@ -219,7 +220,7 @@ export default function MarketScreen() {
     setCancelingId(listing.id);
     try {
       await cancelMarketListing(listing.id);
-      await Promise.all([refreshSellable(), refreshListings()]);
+      await refreshSellable();
     } catch (e: any) {
       Alert.alert('Ошибка отмены', e?.message ?? 'Не удалось отменить лот');
     } finally {
@@ -228,6 +229,15 @@ export default function MarketScreen() {
   };
 
   const onBuyOne = async (listing: MarketListing) => {
+    // TON purchase flow temporarily disabled.
+    // if (marketCurrencyMode === 'ton') {
+    //   Alert.alert(
+    //     'TON mode',
+    //     'Базовая интеграция подключена. Следующий шаг: подготовка TON-транзакции и подтверждение on-chain оплаты.'
+    //   );
+    //   return;
+    // }
+
     if (buyingId) return;
     const approved = await confirmAction(
       'Купить предмет?',
@@ -241,7 +251,7 @@ export default function MarketScreen() {
       if (typeof result?.buyerBeanz === 'number') {
         setBeanz(result.buyerBeanz);
       }
-      await Promise.all([refreshSellable(), refreshListings()]);
+      await refreshSellable();
     } catch (e: any) {
       Alert.alert('Покупка не удалась', e?.message ?? 'Ошибка');
     } finally {
@@ -271,6 +281,10 @@ export default function MarketScreen() {
             <Text style={styles.balanceLabel}>BEANZ</Text>
           </View>
         </View>
+        {/* <TonWalletCard /> */}
+        <Text style={styles.marketMode}>
+          Settlement: BEANZ
+        </Text>
 
         <Text style={styles.sectionTitle}>Выставить предмет</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.itemsRow}>
@@ -401,6 +415,7 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', gap: 10 },
   content: { paddingBottom: 30 },
   muted: { color: NFT.textMuted },
+  marketMode: { color: NFT.textMuted, fontSize: 12, marginBottom: 10 },
 
   header: {
     flexDirection: 'row',

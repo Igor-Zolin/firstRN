@@ -11,11 +11,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { ShaoLayers } from '@/components/ShaoLayers';
 import { getMyStats,
+  getHomeSnapshot,
   tap,
   upgrade,
   resetProgress,cheat,
-  getEquippedMe,
-  getInventoryMe,
   dailyClaim,
   downloadAvatar
 } from '@/src/api/client';
@@ -107,15 +106,10 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const [s, eq, inv] = await Promise.all([
-        getMyStats(),
-        getEquippedMe(),
-        getInventoryMe(),
-      ]);
-
-      applyServerStats(s);
-
-      if (eq) {
+      const snapshot = await getHomeSnapshot();
+      if (snapshot?.stats) applyServerStats(snapshot.stats);
+      if (snapshot?.equipped) {
+        const eq = snapshot.equipped;
         setEquipped({
           backgroundItemId: eq.backgroundItemId ?? eq.background_item_id ?? null,
           weaponItemId: eq.weaponItemId ?? eq.weapon_item_id ?? null,
@@ -125,7 +119,7 @@ export default function App() {
         });
       }
   
-      if (Array.isArray(inv)) setInventory(inv);
+      if (Array.isArray(snapshot?.inventory)) setInventory(snapshot.inventory);
     } catch (e) {
       console.log(e);
     }

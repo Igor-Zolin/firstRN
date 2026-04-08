@@ -3,7 +3,14 @@ const cors = require('cors');
 const path = require('path');
 
 const db = require('./database/db');
-const { PORT, ENABLE_DEV_ROUTES, JWT_SECRET } = require('./config/env');
+const {
+  PORT,
+  ENABLE_DEV_ROUTES,
+  JWT_SECRET,
+  // TON_NETWORK,
+  // TON_MARKET_RECEIVER,
+  // TON_MARKET_ENABLED,
+} = require('./config/env');
 const { createAuthMiddleware } = require('./middleware/auth');
 const { createDevOnlyMiddleware } = require('./middleware/devOnly');
 const { createGameService } = require('./services/game.service');
@@ -19,6 +26,8 @@ const { registerMarketRoutes } = require('./routes/market.routes');
 const { registerInventoryRoutes } = require('./routes/inventory.routes');
 const { registerEquipRoutes } = require('./routes/equip.routes');
 const { registerAvatarRoutes } = require('./routes/avatar.routes');
+// const { registerTonRoutes } = require('./routes/ton.routes');
+const { registerSnapshotRoutes } = require('./routes/snapshot.routes');
 
 const app = express();
 
@@ -53,6 +62,11 @@ const deps = {
   requireDevRoute,
   game,
   avatarService,
+  // tonConfig: {
+  //   network: TON_NETWORK,
+  //   marketReceiver: TON_MARKET_RECEIVER,
+  //   marketEnabled: TON_MARKET_ENABLED,
+  // },
 };
 
 registerHealthRoutes(app, deps);
@@ -65,6 +79,8 @@ registerMarketRoutes(app, deps);
 registerInventoryRoutes(app, deps);
 registerEquipRoutes(app, deps);
 registerAvatarRoutes(app, deps);
+// registerTonRoutes(app, deps);
+registerSnapshotRoutes(app, deps);
 
 app.listen(PORT, () => {
   console.log(`[~] Server running on http://127.0.0.1:${PORT}`);

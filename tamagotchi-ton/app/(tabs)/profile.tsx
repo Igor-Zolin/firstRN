@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { getInventoryMe, getEquippedMe, equipItem, resetInventory } from '../../src/api/client';
+import { getProfileSnapshot, equipItem, resetInventory } from '../../src/api/client';
 
 const NFT = {
   bg: '#0A0A0F',
@@ -97,9 +97,9 @@ export default function ProfileScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [inv, eq] = await Promise.all([getInventoryMe(), getEquippedMe()]);
-      setInventory(Array.isArray(inv) ? inv : []);
-      setEquipped(normalizeEquipped(eq));
+      const snapshot = await getProfileSnapshot();
+      setInventory(Array.isArray(snapshot?.inventory) ? snapshot.inventory : []);
+      setEquipped(normalizeEquipped(snapshot?.equipped));
     } catch (e: any) {
       console.log(e);
       Alert.alert('Ошибка', e?.message ?? 'Не удалось загрузить профиль');
@@ -110,14 +110,9 @@ export default function ProfileScreen() {
 
   const refresh = useCallback(async () => {
     try {
-      const [eq, inv] = await Promise.all([
-        getEquippedMe(),
-        getInventoryMe(),
-      ]);
-  
-      setEquipped(normalizeEquipped(eq));
-  
-      if (Array.isArray(inv)) setInventory(inv);
+      const snapshot = await getProfileSnapshot();
+      setEquipped(normalizeEquipped(snapshot?.equipped));
+      if (Array.isArray(snapshot?.inventory)) setInventory(snapshot.inventory);
     } catch (e) {
       console.log(e);
     }

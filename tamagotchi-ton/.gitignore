@@ -43,3 +43,8 @@ app-example
 /android
 
 .vscode
+
+# TON (temporarily disabled)
+src/ton/
+src/components/ton-wallet-card.tsx
+TON_INTEGRATION.md

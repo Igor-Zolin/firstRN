@@ -25,6 +25,8 @@ tmp/
 *.db
 *.sqlite
 *.sqlite3
+*.sqlite-wal
+*.sqlite-shm
 
 # Директории сборки
 dist/
@@ -57,3 +59,6 @@ coverage/
 /secrets/
 
 /public/items
+
+# TON (temporarily disabled)
+src/routes/ton.routes.js

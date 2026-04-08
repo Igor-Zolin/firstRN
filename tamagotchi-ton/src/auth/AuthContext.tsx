@@ -11,6 +11,8 @@ type AuthUser = {
   username: string;
   email: string;
   created_at?: string;
+  tonWalletAddress?: string | null;
+  tonWalletConnectedAt?: number | null;
 };
 
 type LoginResponse = {
