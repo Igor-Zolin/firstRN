@@ -10,7 +10,7 @@ import {
   Alert,
   Platform
 } from 'react-native';
-import { getShopCategories, getShopItemsMe, buyItem, getMyStats } from '../../src/api/client';
+import { getShopCategories, getShopItems, buyItem, getMyStats } from '../../src/api/client';
 
 const NFT = {
   bg: '#0A0A0F',
@@ -36,6 +36,7 @@ type ShopItem = {
   model_name: string;
   rarity: string;
   price: number;
+  supply: number;
   imageUrl: string;
 };
 
@@ -67,7 +68,7 @@ export default function ShopScreen() {
       const defaultType = (cats && cats.length > 0) ? cats[0] : '';
       setActiveType(defaultType);
 
-      const shopItems = await getShopItemsMe(defaultType ? { type: defaultType } : {});
+      const shopItems = await getShopItems(defaultType ? { type: defaultType } : {});
       setItems(Array.isArray(shopItems) ? shopItems : []);
     } catch (e: any) {
       console.log(e);
@@ -82,7 +83,7 @@ export default function ShopScreen() {
     try {
       const [stats, shopItems] = await Promise.all([
         getMyStats(),
-        getShopItemsMe(type ? { type } : {}),
+        getShopItems(type ? { type } : {}),
       ]);
       setBeanz(stats?.beanz ?? 0);
       setItems(Array.isArray(shopItems) ? shopItems : []);
@@ -95,24 +96,24 @@ export default function ShopScreen() {
   }, []);
 
   const refresh = useCallback(async () => {
-      try {
-        const [s] = await Promise.all([
-          getMyStats(),
-        ]);
-  
-        applyServerStats(s);
-      } catch (e) {
-        console.log(e);
-      }
-    }, [applyServerStats]);
+    try {
+      const [s] = await Promise.all([
+        getMyStats(),
+      ]);
+
+      applyServerStats(s);
+    } catch (e) {
+      console.log(e);
+    }
+  }, [applyServerStats]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
 
   useEffect(() => {
-      refresh();
-    }, [refresh]);
+    refresh();
+  }, [refresh]);
 
   const onSelectCategory = async (type: string) => {
     setActiveType(type);
@@ -209,17 +210,17 @@ export default function ShopScreen() {
                 {it.name}
               </Text>
               <Text style={styles.itemMeta}>
-                {it.rarity} • {it.type}
+                {it.rarity} • {it.type} • {it.supply}
               </Text>
 
               <View style={styles.priceRow}>
                 <Text style={styles.price}>{it.price} BEANZ</Text>
                 <TouchableOpacity
                   onPress={() => onBuy(it)}
-                  style={[styles.buyBtn, buyingId === it.id && styles.buyBtnDisabled]}
-                  disabled={buyingId === it.id}
+                  style={[styles.buyBtn, (buyingId === it.id || it.supply <= 0 || beanz < it.price) && styles.buyBtnDisabled]}
+                  disabled={buyingId === it.id || it.supply <= 0 || beanz < it.price}
                 >
-                  <Text style={styles.buyText}>{buyingId === it.id ? '...' : 'BUY'}</Text>
+                  <Text style={styles.buyText}>{it.supply <= 0 ? 'SOLD OUT' : buyingId === it.id ? '...' : 'BUY'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -326,7 +327,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: NFT.purpleDim,
   },
-  buyBtnDisabled: { opacity: 0.6 },
+  buyBtnDisabled: { 
+    opacity: 0.5,
+    color: '#cccccc',
+    backgroundColor: '#000000',
+   },
   buyText: { color: NFT.text, fontWeight: '800', fontSize: 12, letterSpacing: 1 },
 
   empty: { width: '100%', paddingTop: 40, alignItems: 'center', gap: 6 },

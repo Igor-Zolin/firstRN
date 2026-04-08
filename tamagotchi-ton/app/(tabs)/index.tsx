@@ -7,7 +7,6 @@ import {
   Text,
   ScrollView,
   Platform,
-  Image,  
 } from 'react-native';
 import { ShaoLayers } from '@/components/ShaoLayers';
 import { getMyStats,
@@ -19,7 +18,6 @@ import { getMyStats,
   dailyClaim,
   downloadAvatar
 } from '@/src/api/client';
-// import { opacity } from 'react-native-reanimated/lib/typescript/Colors';
 
 const NFT = {
   bg: '#0A0A0F',
@@ -302,28 +300,60 @@ export default function App() {
 
         <Text style={styles.sectionTitle}>UPGRADES</Text>
         <View style={styles.upgradeGrid}>
-          <TouchableOpacity onPress={multiplyPlus} disabled={coin < Math.floor(maxCoins * 0.1)} style={[styles.upgradeBtn, coin < Math.floor(maxCoins * 0.1) && styles.upgradeBtndisabled]}>
+          <TouchableOpacity
+            onPress={multiplyPlus}
+            disabled={coin < Math.floor(maxCoins * 0.1)}
+            style={[
+              styles.upgradeBtn,
+              coin < Math.floor(maxCoins * 0.1)
+              && styles.upgradeBtndisabled
+            ]}
+          >
             <Text style={styles.upgradeBtnTitle}>+1 STEP</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={styles.upgradeBtnSub}>×{multiply}</Text>
               <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.floor(maxCoins * 0.1)} COINS</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={multiplyMulti} disabled={coin < Math.floor(maxCoins * 0.33)} style={[styles.upgradeBtn, coin < Math.floor(maxCoins * 0.33) && styles.upgradeBtndisabled]}>
+          <TouchableOpacity
+            onPress={multiplyMulti}
+            disabled={coin < Math.floor(maxCoins * 0.33)}
+            style={[
+              styles.upgradeBtn,
+              coin < Math.floor(maxCoins * 0.33)
+              && styles.upgradeBtndisabled
+            ]}
+          >
             <Text style={styles.upgradeBtnTitle}>×1.5 MULTI</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={styles.upgradeBtnSub}>×{multiply}</Text>
               <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.floor(maxCoins * 0.33)} COINS</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={maxEnergyPlus} disabled={coin < Math.floor(maxCoins * 0.7)} style={[styles.upgradeBtn, coin < Math.floor(maxCoins * 0.7) && styles.upgradeBtndisabled]}>
+          <TouchableOpacity
+            onPress={maxEnergyPlus}
+            disabled={coin < Math.floor(maxCoins * 0.7)}
+            style={[
+              styles.upgradeBtn,
+              coin < Math.floor(maxCoins * 0.7)
+              && styles.upgradeBtndisabled
+            ]}
+          >
             <Text style={styles.upgradeBtnTitle}>MAX ENERGY +50</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={styles.upgradeBtnSub}>{maxEnergy}</Text>
               <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.floor(maxCoins * 0.7)} COINS</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={maxCoinsPlus} disabled={coin < Math.floor(maxCoins * 0.8)} style={[styles.upgradeBtn, coin < Math.floor(maxCoins * 0.8) && styles.upgradeBtndisabled]}>
+          <TouchableOpacity
+            onPress={maxCoinsPlus}
+            disabled={coin < Math.floor(maxCoins * 0.8)}
+            style={[
+              styles.upgradeBtn,
+              coin < Math.floor(maxCoins * 0.8)
+              && styles.upgradeBtndisabled
+            ]}
+          >
             <Text style={styles.upgradeBtnTitle}>MAX COINS +25%</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={styles.upgradeBtnSub}>{maxCoins}</Text>
@@ -334,14 +364,30 @@ export default function App() {
 
         <Text style={styles.sectionTitle}>MINING</Text>
         <View style={styles.upgradeGrid}>
-          <TouchableOpacity onPress={beanzMiningPlus} disabled={coin < Math.floor(maxCoins * 0.50 + upgBeanzLevel * upgBeanzLevel * 20)} style={[styles.upgradeBtn, coin < Math.floor(maxCoins * 0.50 + upgBeanzLevel * upgBeanzLevel * 20) && styles.upgradeBtndisabled]}>
+          <TouchableOpacity
+            onPress={beanzMiningPlus}
+            disabled={coin < Math.floor(maxCoins * 0.50 + upgBeanzLevel * upgBeanzLevel * 20)}
+            style={[
+              styles.upgradeBtn, 
+              coin < Math.floor(maxCoins * 0.50 + upgBeanzLevel * upgBeanzLevel * 20) 
+              && styles.upgradeBtndisabled
+            ]}
+          >
             <Text style={styles.upgradeBtnTitle}>BEANZ/M +1</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={styles.upgradeBtnSub}>×{beanzMining}</Text>
               <Text style={[styles.upgradeBtnSub, { color: NFT.goldDim }]}>{Math.min(Math.floor(maxCoins * 0.50 + upgBeanzLevel * upgBeanzLevel * 20), maxCoins)} COINS</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={coinsPlus} disabled={coin < Math.floor(maxCoins * 0.9)} style={[styles.upgradeBtn, coin < Math.floor(maxCoins * 0.9) && styles.upgradeBtndisabled]}>
+          <TouchableOpacity
+            onPress={coinsPlus}
+            disabled={coin < Math.floor(maxCoins * 0.9)}
+            style={[
+              styles.upgradeBtn,
+              coin < Math.floor(maxCoins * 0.9)
+              && styles.upgradeBtndisabled
+            ]}
+          >
             <Text style={styles.upgradeBtnTitle}>COIN/M +0.2</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={styles.upgradeBtnSub}>{multiplyCoins}</Text>

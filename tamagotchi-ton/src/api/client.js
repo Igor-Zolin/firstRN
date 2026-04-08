@@ -177,7 +177,7 @@ export async function getShopCategories() {
   return request('/api/shop/categories');
 }
 
-export async function getShopItemsMe(params = {}) {
+export async function getShopItems(params = {}) {
   const q = new URLSearchParams();
   if (params.type) q.set('type', params.type);
   if (params.rarity) q.set('rarity', params.rarity);
@@ -186,7 +186,7 @@ export async function getShopItemsMe(params = {}) {
   if (params.offset) q.set('offset', String(params.offset));
 
   const qs = q.toString();
-  return request(`/api/shop/items/me${qs ? `?${qs}` : ''}`);
+  return request(`/api/shop/items${qs ? `?${qs}` : ''}`);
 }
 
 export async function buyItem(itemId) {

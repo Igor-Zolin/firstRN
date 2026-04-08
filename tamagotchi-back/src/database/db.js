@@ -64,6 +64,7 @@ db.serialize(() => {
       model_name TEXT NOT NULL,
       rarity TEXT DEFAULT 'common',
       price INTEGER DEFAULT 0,
+      supply INTEGER NOT NULL DEFAULT 50,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
