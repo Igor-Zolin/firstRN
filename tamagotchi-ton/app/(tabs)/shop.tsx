@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  Platform
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getShopCategories, getShopItems, buyItem, getMyStats } from '../../src/api/client';
@@ -58,6 +59,16 @@ function confirmBuy(item: ShopItem): Promise<boolean> {
 }
 
 export default function ShopScreen() {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 390;
+  const contentWidth = Math.max(280, width - (isCompact ? 24 : 32));
+  const gridGap = 10;
+  const columns = width >= 900 ? 4 : width >= 640 ? 3 : width >= 360 ? 2 : 1;
+  const itemCardWidth =
+    columns === 1
+      ? contentWidth
+      : Math.floor((contentWidth - gridGap * (columns - 1)) / columns);
+
   const [loading, setLoading] = useState(true);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [buyingId, setBuyingId] = useState<number | null>(null);
@@ -200,7 +211,7 @@ export default function ShopScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
+      <View style={[styles.container, isCompact && styles.containerCompact, styles.center]}>
         <ActivityIndicator />
         <Text style={styles.muted}>Загрузка магазина…</Text>
       </View>
@@ -208,9 +219,9 @@ export default function ShopScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isCompact && styles.containerCompact]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isCompact && styles.headerCompact]}>
         <View>
           <Text style={styles.headerLabel}>SHOP</Text>
           <Text style={styles.headerTitle}>Items</Text>
@@ -224,7 +235,12 @@ export default function ShopScreen() {
       </View>
 
       {/* Categories */}
-      <View style={styles.tabs}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabsWrap}
+        contentContainerStyle={styles.tabs}
+      >
         {categories.map((c) => {
           const active = c === activeType;
           return (
@@ -237,29 +253,37 @@ export default function ShopScreen() {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
-      <View style={styles.searchRow}>
+      <View style={[styles.searchRow, isCompact && styles.searchRowCompact]}>
         <TextInput
           value={searchInput}
           onChangeText={setSearchInput}
           placeholder="Поиск по названию или файлу"
           placeholderTextColor={NFT.textMuted}
-          style={styles.searchInput}
+          style={[styles.searchInput, isCompact && styles.searchInputCompact]}
           onSubmitEditing={onApplySearch}
           returnKeyType="search"
         />
-        <TouchableOpacity style={styles.searchBtn} onPress={onApplySearch}>
-          <Text style={styles.searchBtnText}>Search</Text>
-        </TouchableOpacity>
-        {searchQuery ? (
-          <TouchableOpacity style={styles.clearBtn} onPress={onResetSearch}>
-            <Text style={styles.clearBtnText}>Clear</Text>
+
+        <View style={[styles.searchActions, isCompact && styles.searchActionsCompact]}>
+          <TouchableOpacity
+            style={[styles.searchBtn, isCompact && styles.searchActionBtn]}
+            onPress={onApplySearch}
+          >
+            <Text style={styles.searchBtnText}>Search</Text>
           </TouchableOpacity>
-        ) : null}
+          {searchQuery ? (
+            <TouchableOpacity
+              style={[styles.clearBtn, isCompact && styles.searchActionBtn]}
+              onPress={onResetSearch}
+            >
+              <Text style={styles.clearBtnText}>Clear</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
-      {/* Items grid */}
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
         {itemsLoading ? (
           <View style={styles.loadingInline}>
@@ -271,11 +295,18 @@ export default function ShopScreen() {
         {items.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.muted}>В этой категории нет доступных предметов.</Text>
-            <Text style={styles.mutedSmall}>Если ты всё купил — так и должно быть 🙂</Text>
+            <Text style={styles.mutedSmall}>Если ты всё купил - так и должно быть</Text>
           </View>
         ) : (
           items.map((it) => (
-            <View key={it.id} style={styles.itemCard}>
+            <View
+              key={it.id}
+              style={[
+                styles.itemCard,
+                { width: itemCardWidth },
+                isCompact && styles.itemCardCompact,
+              ]}
+            >
               <View style={styles.thumbWrap}>
                 <Image source={{ uri: it.imageUrl }} style={styles.thumb} resizeMode="contain" />
               </View>
@@ -287,14 +318,20 @@ export default function ShopScreen() {
                 {it.rarity} • {it.type} • {it.supply}
               </Text>
 
-              <View style={styles.priceRow}>
+              <View style={[styles.priceRow, isCompact && styles.priceRowCompact]}>
                 <Text style={styles.price}>{it.price} BEANZ</Text>
                 <TouchableOpacity
                   onPress={() => onBuy(it)}
-                  style={[styles.buyBtn, (buyingId === it.id || it.supply <= 0 || beanz < it.price) && styles.buyBtnDisabled]}
+                  style={[
+                    styles.buyBtn,
+                    isCompact && styles.buyBtnCompact,
+                    (buyingId === it.id || it.supply <= 0 || beanz < it.price) && styles.buyBtnDisabled,
+                  ]}
                   disabled={buyingId === it.id || it.supply <= 0 || beanz < it.price}
                 >
-                  <Text style={styles.buyText}>{it.supply <= 0 ? 'SOLD OUT' : buyingId === it.id ? '...' : 'BUY'}</Text>
+                  <Text style={styles.buyText}>
+                    {it.supply <= 0 ? 'SOLD OUT' : buyingId === it.id ? '...' : 'BUY'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -311,9 +348,12 @@ const styles = StyleSheet.create({
     backgroundColor: NFT.bg,
     padding: 16,
     ...Platform.select({
-          web: { paddingTop: 0 },
-          default: { paddingTop: 50 }
-        })
+      web: { paddingTop: 0 },
+      default: { paddingTop: 50 }
+    })
+  },
+  containerCompact: {
+    paddingHorizontal: 12,
   },
   center: { justifyContent: 'center', alignItems: 'center', gap: 10 },
 
@@ -322,6 +362,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 14,
+    gap: 10,
+  },
+  headerCompact: {
+    flexWrap: 'wrap',
   },
   headerLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 3, color: NFT.cyanDim },
   headerTitle: { fontSize: 26, fontWeight: '800', color: NFT.text, marginTop: 2 },
@@ -340,12 +384,12 @@ const styles = StyleSheet.create({
   balanceValue: { fontSize: 18, fontWeight: '800', color: NFT.text },
   balanceLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 2, color: NFT.beanz, marginTop: 4 },
 
+  tabsWrap: { marginBottom: 12 },
   tabs: {
-    marginBottom: 12,
-    display: 'flex',
     flexDirection: 'row',
-    justifyContent: 'center'
-   },
+    alignItems: 'center',
+    paddingRight: 6,
+  },
   tab: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -365,6 +409,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 8,
   },
+  searchRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 8,
+  },
   searchInput: {
     flex: 1,
     height: 40,
@@ -375,6 +424,17 @@ const styles = StyleSheet.create({
     color: NFT.text,
     paddingHorizontal: 12,
   },
+  searchInputCompact: {
+    width: '100%',
+  },
+  searchActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchActionsCompact: {
+    width: '100%',
+  },
   searchBtn: {
     height: 40,
     borderRadius: 10,
@@ -382,6 +442,10 @@ const styles = StyleSheet.create({
     borderColor: NFT.purpleDim,
     justifyContent: 'center',
     paddingHorizontal: 12,
+  },
+  searchActionBtn: {
+    flex: 1,
+    alignItems: 'center',
   },
   searchBtnText: { color: NFT.text, fontWeight: '700', fontSize: 12 },
   clearBtn: {
@@ -398,21 +462,22 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 10,
   },
   itemCard: {
-    width: '48%',
-    maxWidth: 300,
     backgroundColor: NFT.card,
     borderWidth: 1,
     borderColor: NFT.cardBorder,
     borderRadius: 16,
     padding: 12,
   },
+  itemCardCompact: {
+    padding: 10,
+  },
   thumbWrap: {
     width: '100%',
-    height: 110,
+    aspectRatio: 1,
     borderRadius: 12,
     backgroundColor: NFT.surface,
     borderWidth: 1,
@@ -420,13 +485,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
+    overflow: 'hidden',
   },
   thumb: { width: '90%', height: '90%' },
 
   itemName: { color: NFT.text, fontWeight: '800', fontSize: 13 },
   itemMeta: { color: NFT.textMuted, fontSize: 11, marginTop: 4 },
 
-  priceRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  priceRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  priceRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
   price: { color: NFT.beanzDim, fontWeight: '800', fontSize: 12 },
 
   buyBtn: {
@@ -435,6 +505,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: NFT.purpleDim,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buyBtnCompact: {
+    width: '100%',
   },
   buyBtnDisabled: { 
     opacity: 0.5,

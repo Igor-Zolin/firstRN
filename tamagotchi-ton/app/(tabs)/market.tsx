@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -75,6 +76,10 @@ function confirmAction(title: string, message: string): Promise<boolean> {
 }
 
 export default function MarketScreen() {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 390;
+  const sellCardWidth = width >= 440 ? 170 : 148;
+
   // TON market mode is temporarily disabled.
   // const marketCurrencyMode = useMemo(() => getMarketCurrencyMode(), []);
   const [loading, setLoading] = useState(true);
@@ -261,7 +266,7 @@ export default function MarketScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
+      <View style={[styles.container, isCompact && styles.containerCompact, styles.center]}>
         <ActivityIndicator />
         <Text style={styles.muted}>Загрузка рынка...</Text>
       </View>
@@ -269,9 +274,9 @@ export default function MarketScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isCompact && styles.containerCompact]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={[styles.header, isCompact && styles.headerCompact]}>
           <View>
             <Text style={styles.headerLabel}>SECONDARY MARKET</Text>
             <Text style={styles.headerTitle}>P2P Listings</Text>
@@ -296,7 +301,11 @@ export default function MarketScreen() {
               return (
                 <TouchableOpacity
                   key={it.item_id}
-                  style={[styles.sellItemCard, selected && styles.sellItemCardActive]}
+                  style={[
+                    styles.sellItemCard,
+                    { width: sellCardWidth },
+                    selected && styles.sellItemCardActive,
+                  ]}
                   onPress={() => setSelectedItemId(it.item_id)}
                 >
                   <Image source={{ uri: it.imageUrl }} style={styles.sellThumb} resizeMode="contain" />
@@ -352,16 +361,24 @@ export default function MarketScreen() {
           <Text style={styles.muted}>Активных лотов нет</Text>
         ) : (
           myListings.map((l) => (
-            <View key={`my-${l.id}`} style={styles.listingCard}>
-              <Image source={{ uri: l.imageUrl }} style={styles.listingThumb} resizeMode="contain" />
-              <View style={styles.listingBody}>
+            <View key={`my-${l.id}`} style={[styles.listingCard, isCompact && styles.listingCardCompact]}>
+              <Image
+                source={{ uri: l.imageUrl }}
+                style={[styles.listingThumb, isCompact && styles.listingThumbCompact]}
+                resizeMode="contain"
+              />
+              <View style={[styles.listingBody, isCompact && styles.listingBodyCompact]}>
                 <Text style={styles.listingName}>{l.name}</Text>
                 <Text style={styles.listingMeta}>
                   {l.price_per_unit} BEANZ · Осталось: {l.quantity_left}
                 </Text>
               </View>
               <TouchableOpacity
-                style={[styles.smallBtn, cancelingId === l.id && styles.actionBtnDisabled]}
+                style={[
+                  styles.smallBtn,
+                  isCompact && styles.smallBtnCompact,
+                  cancelingId === l.id && styles.actionBtnDisabled,
+                ]}
                 disabled={cancelingId === l.id}
                 onPress={() => onCancelListing(l)}
               >
@@ -376,9 +393,13 @@ export default function MarketScreen() {
           <Text style={styles.muted}>Пока нет доступных лотов</Text>
         ) : (
           publicListings.map((l) => (
-            <View key={`pub-${l.id}`} style={styles.listingCard}>
-              <Image source={{ uri: l.imageUrl }} style={styles.listingThumb} resizeMode="contain" />
-              <View style={styles.listingBody}>
+            <View key={`pub-${l.id}`} style={[styles.listingCard, isCompact && styles.listingCardCompact]}>
+              <Image
+                source={{ uri: l.imageUrl }}
+                style={[styles.listingThumb, isCompact && styles.listingThumbCompact]}
+                resizeMode="contain"
+              />
+              <View style={[styles.listingBody, isCompact && styles.listingBodyCompact]}>
                 <Text style={styles.listingName}>{l.name}</Text>
                 <Text style={styles.listingMeta}>
                   Продавец: {l.seller_username ?? `#${l.seller_user_id}`}
@@ -388,7 +409,11 @@ export default function MarketScreen() {
                 </Text>
               </View>
               <TouchableOpacity
-                style={[styles.smallBtn, buyingId === l.id && styles.actionBtnDisabled]}
+                style={[
+                  styles.smallBtn,
+                  isCompact && styles.smallBtnCompact,
+                  buyingId === l.id && styles.actionBtnDisabled,
+                ]}
                 disabled={buyingId === l.id || beanz < l.price_per_unit}
                 onPress={() => onBuyOne(l)}
               >
@@ -412,6 +437,9 @@ const styles = StyleSheet.create({
       default: { paddingTop: 40 },
     }),
   },
+  containerCompact: {
+    paddingHorizontal: 12,
+  },
   center: { alignItems: 'center', justifyContent: 'center', gap: 10 },
   content: { paddingBottom: 30 },
   muted: { color: NFT.textMuted },
@@ -422,6 +450,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 14,
+    gap: 10,
+  },
+  headerCompact: {
+    flexWrap: 'wrap',
   },
   headerLabel: { fontSize: 10, color: NFT.cyanDim, letterSpacing: 2, fontWeight: '700' },
   headerTitle: { fontSize: 24, color: NFT.text, fontWeight: '800', marginTop: 4 },
@@ -449,7 +481,6 @@ const styles = StyleSheet.create({
 
   itemsRow: { gap: 10, paddingBottom: 8 },
   sellItemCard: {
-    width: 160,
     backgroundColor: NFT.card,
     borderRadius: 12,
     borderWidth: 1,
@@ -457,7 +488,13 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   sellItemCardActive: { borderColor: NFT.cyan },
-  sellThumb: { width: '100%', height: 90, backgroundColor: NFT.surface, borderRadius: 8, marginBottom: 8 },
+  sellThumb: {
+    width: '100%',
+    aspectRatio: 1,
+    backgroundColor: NFT.surface,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
   sellName: { color: NFT.text, fontWeight: '700', fontSize: 12 },
   sellMeta: { color: NFT.textMuted, fontSize: 11, marginTop: 4 },
 
@@ -503,8 +540,20 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 8,
   },
+  listingCardCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 8,
+  },
   listingThumb: { width: 52, height: 52, borderRadius: 8, backgroundColor: NFT.surface },
+  listingThumbCompact: {
+    width: 64,
+    height: 64,
+  },
   listingBody: { flex: 1 },
+  listingBodyCompact: {
+    width: '100%',
+  },
   listingName: { color: NFT.text, fontSize: 13, fontWeight: '700' },
   listingMeta: { color: NFT.textMuted, fontSize: 11, marginTop: 3 },
   smallBtn: {
@@ -513,6 +562,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 10,
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  smallBtnCompact: {
+    alignItems: 'center',
   },
   smallBtnText: { color: NFT.text, fontSize: 12, fontWeight: '700' },
 });
