@@ -22,9 +22,9 @@ export const getApiBase = () => {
     return 'http://localhost:3000';
   }
   // Android emulator loopback to host machine.
-  if (Platform.OS === 'android') return 'http://192.168.3.72:3000';
+  if (Platform.OS === 'android') return 'http://192.168.3.19:3000';
   // localhost's IP for iOS simulator
-  return 'http://192.168.3.72:3000';
+  return 'http://192.168.3.19:3000';
 };
 
 async function getToken() {
