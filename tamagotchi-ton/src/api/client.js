@@ -339,3 +339,7 @@ export async function getEquippedMe() {
 export async function equipItem(slot, itemId) {
   return request('/api/equip', { method: 'POST', body: { slot, itemId } });
 }
+
+export async function unequipItem(slot) {
+  return request('/api/equip/unequip', { method: 'POST', body: { slot } });
+}

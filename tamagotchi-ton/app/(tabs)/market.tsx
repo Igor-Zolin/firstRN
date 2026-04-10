@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -16,23 +15,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   buyFromMarket,
   cancelMarketListing,
-  createMarketListing,
   getMarketSnapshot,
 } from '@/src/api/client';
 // import { TonWalletCard } from '@/src/components/ton-wallet-card';
 // import { getMarketCurrencyMode } from '@/src/ton/config';
-
-type SellableItem = {
-  item_id: number;
-  quantity: number;
-  maxListable: number;
-  lockedByEquip: number;
-  name: string;
-  type: string;
-  rarity: string;
-  model_name: string;
-  imageUrl: string;
-};
 
 type MarketListing = {
   id: number;
@@ -78,28 +64,15 @@ function confirmAction(title: string, message: string): Promise<boolean> {
 export default function MarketScreen() {
   const { width } = useWindowDimensions();
   const isCompact = width < 390;
-  const sellCardWidth = width >= 440 ? 170 : 148;
 
   // TON market mode is temporarily disabled.
   // const marketCurrencyMode = useMemo(() => getMarketCurrencyMode(), []);
   const [loading, setLoading] = useState(true);
   const [beanz, setBeanz] = useState(0);
-  const [sellable, setSellable] = useState<SellableItem[]>([]);
   const [listings, setListings] = useState<MarketListing[]>([]);
   const [myListings, setMyListings] = useState<MarketListing[]>([]);
-
-  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
-  const [priceInput, setPriceInput] = useState('1');
-  const [qtyInput, setQtyInput] = useState('1');
-
-  const [creating, setCreating] = useState(false);
   const [buyingId, setBuyingId] = useState<number | null>(null);
   const [cancelingId, setCancelingId] = useState<number | null>(null);
-
-  const selectedItem = useMemo(
-    () => sellable.find((it) => it.item_id === selectedItemId) || null,
-    [sellable, selectedItemId]
-  );
 
   const publicListings = useMemo(
     () => listings.filter((l) => !l.isMine),
@@ -109,19 +82,12 @@ export default function MarketScreen() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const snapshot = await getMarketSnapshot();
+      const snapshot = await getMarketSnapshot({ mode: 'focus' });
       setBeanz(snapshot?.stats?.beanz ?? 0);
-      const s: SellableItem[] = Array.isArray(snapshot?.sellable) ? snapshot.sellable : [];
       const p = Array.isArray(snapshot?.listings) ? snapshot.listings : [];
       const mine = Array.isArray(snapshot?.myListings) ? snapshot.myListings : [];
-      setSellable(s);
       setListings(p);
       setMyListings(mine);
-      setSelectedItemId((prev) => {
-        const normalized: SellableItem[] = s;
-        if (prev && normalized.some((it) => it.item_id === prev)) return prev;
-        return normalized.length > 0 ? normalized[0].item_id : null;
-      });
     } catch (e: any) {
       Alert.alert('Ошибка', e?.message ?? 'Не удалось загрузить рынок');
     } finally {
@@ -134,19 +100,6 @@ export default function MarketScreen() {
     setBeanz(snapshot?.stats?.beanz ?? 0);
     setListings(Array.isArray(snapshot?.listings) ? snapshot.listings : []);
     setMyListings(Array.isArray(snapshot?.myListings) ? snapshot.myListings : []);
-  }, []);
-
-  const refreshSellable = useCallback(async () => {
-    const snapshot = await getMarketSnapshot();
-    const normalized: SellableItem[] = Array.isArray(snapshot?.sellable) ? snapshot.sellable : [];
-    setSellable(normalized);
-    if (Array.isArray(snapshot?.listings)) setListings(snapshot.listings);
-    if (Array.isArray(snapshot?.myListings)) setMyListings(snapshot.myListings);
-    if (snapshot?.stats?.beanz != null) setBeanz(snapshot.stats.beanz);
-    setSelectedItemId((prev) => {
-      if (prev && normalized.some((it) => it.item_id === prev)) return prev;
-      return normalized.length > 0 ? normalized[0].item_id : null;
-    });
   }, []);
 
   useEffect(() => {
@@ -169,51 +122,6 @@ export default function MarketScreen() {
     }, [refreshListings])
   );
 
-  const onCreateListing = async () => {
-    if (!selectedItem) {
-      Alert.alert('Нет предмета', 'Выбери предмет для продажи.');
-      return;
-    }
-
-    const pricePerUnit = Math.floor(Number(priceInput));
-    const quantity = Math.floor(Number(qtyInput));
-
-    if (!pricePerUnit || pricePerUnit < 1) {
-      Alert.alert('Некорректная цена', 'Цена должна быть не меньше 1 BEANZ.');
-      return;
-    }
-    if (!quantity || quantity < 1) {
-      Alert.alert('Некорректное количество', 'Количество должно быть не меньше 1.');
-      return;
-    }
-    if (quantity > selectedItem.maxListable) {
-      Alert.alert('Слишком много', `Максимум для продажи: ${selectedItem.maxListable}`);
-      return;
-    }
-
-    const approved = await confirmAction(
-      'Подтверждение листинга',
-      `${selectedItem.name}\nЦена: ${pricePerUnit} BEANZ\nКоличество: ${quantity}`
-    );
-    if (!approved) return;
-
-    setCreating(true);
-    try {
-      await createMarketListing({
-        itemId: selectedItem.item_id,
-        quantity,
-        pricePerUnit,
-      });
-
-      setQtyInput('1');
-      await refreshSellable();
-    } catch (e: any) {
-      Alert.alert('Не удалось выставить лот', e?.message ?? 'Ошибка');
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const onCancelListing = async (listing: MarketListing) => {
     if (cancelingId) return;
     const approved = await confirmAction(
@@ -225,7 +133,7 @@ export default function MarketScreen() {
     setCancelingId(listing.id);
     try {
       await cancelMarketListing(listing.id);
-      await refreshSellable();
+      await refreshListings();
     } catch (e: any) {
       Alert.alert('Ошибка отмены', e?.message ?? 'Не удалось отменить лот');
     } finally {
@@ -256,7 +164,7 @@ export default function MarketScreen() {
       if (typeof result?.buyerBeanz === 'number') {
         setBeanz(result.buyerBeanz);
       }
-      await refreshSellable();
+      await refreshListings();
     } catch (e: any) {
       Alert.alert('Покупка не удалась', e?.message ?? 'Ошибка');
     } finally {
@@ -291,136 +199,65 @@ export default function MarketScreen() {
           Settlement: BEANZ
         </Text>
 
-        <Text style={styles.sectionTitle}>Выставить предмет</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.itemsRow}>
-          {sellable.length === 0 ? (
-            <Text style={styles.muted}>Нет предметов для продажи</Text>
-          ) : (
-            sellable.map((it) => {
-              const selected = it.item_id === selectedItemId;
-              return (
-                <TouchableOpacity
-                  key={it.item_id}
-                  style={[
-                    styles.sellItemCard,
-                    { width: sellCardWidth },
-                    selected && styles.sellItemCardActive,
-                  ]}
-                  onPress={() => setSelectedItemId(it.item_id)}
-                >
-                  <Image source={{ uri: it.imageUrl }} style={styles.sellThumb} resizeMode="contain" />
-                  <Text style={styles.sellName} numberOfLines={1}>
-                    {it.name}
-                  </Text>
-                  <Text style={styles.sellMeta}>
-                    Есть: {it.quantity} · Можно: {it.maxListable}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </ScrollView>
-
-        <View style={styles.formCard}>
-          <Text style={styles.formLabel}>Цена за 1 шт (BEANZ)</Text>
-          <TextInput
-            value={priceInput}
-            onChangeText={setPriceInput}
-            keyboardType="numeric"
-            style={styles.input}
-            placeholder="Например: 25"
-            placeholderTextColor={NFT.textMuted}
-          />
-
-          <Text style={styles.formLabel}>Количество</Text>
-          <TextInput
-            value={qtyInput}
-            onChangeText={setQtyInput}
-            keyboardType="numeric"
-            style={styles.input}
-            placeholder="Например: 2"
-            placeholderTextColor={NFT.textMuted}
-          />
-
-          <Text style={styles.hint}>
-            Максимум: {selectedItem?.maxListable ?? 0}
-            {selectedItem?.lockedByEquip ? ` (в экипировке: ${selectedItem.lockedByEquip})` : ''}
-          </Text>
-
-          <TouchableOpacity
-            onPress={onCreateListing}
-            disabled={creating || !selectedItem}
-            style={[styles.actionBtn, (creating || !selectedItem) && styles.actionBtnDisabled]}
-          >
-            <Text style={styles.actionBtnText}>{creating ? 'Создание...' : 'Выставить на продажу'}</Text>
-          </TouchableOpacity>
-        </View>
-
         <Text style={styles.sectionTitle}>Мои лоты</Text>
         {myListings.length === 0 ? (
           <Text style={styles.muted}>Активных лотов нет</Text>
         ) : (
-          myListings.map((l) => (
-            <View key={`my-${l.id}`} style={[styles.listingCard, isCompact && styles.listingCardCompact]}>
-              <Image
-                source={{ uri: l.imageUrl }}
-                style={[styles.listingThumb, isCompact && styles.listingThumbCompact]}
-                resizeMode="contain"
-              />
-              <View style={[styles.listingBody, isCompact && styles.listingBodyCompact]}>
-                <Text style={styles.listingName}>{l.name}</Text>
+          <View style={styles.grid}>
+            {myListings.map((l) => (
+              <View key={`my-${l.id}`} style={styles.listingCard}>
+                <View style={styles.listingThumbWrap}>
+                  <Image source={{ uri: l.imageUrl }} style={styles.listingThumb} resizeMode="contain" />
+                </View>
+                <Text style={styles.listingName} numberOfLines={1}>{l.name}</Text>
                 <Text style={styles.listingMeta}>
                   {l.price_per_unit} BEANZ · Осталось: {l.quantity_left}
                 </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.smallBtn,
+                    cancelingId === l.id && styles.actionBtnDisabled,
+                  ]}
+                  disabled={cancelingId === l.id}
+                  onPress={() => onCancelListing(l)}
+                >
+                  <Text style={styles.smallBtnText}>{cancelingId === l.id ? '...' : 'Снять'}</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={[
-                  styles.smallBtn,
-                  isCompact && styles.smallBtnCompact,
-                  cancelingId === l.id && styles.actionBtnDisabled,
-                ]}
-                disabled={cancelingId === l.id}
-                onPress={() => onCancelListing(l)}
-              >
-                <Text style={styles.smallBtnText}>{cancelingId === l.id ? '...' : 'Снять'}</Text>
-              </TouchableOpacity>
-            </View>
-          ))
+            ))}
+          </View>
         )}
 
         <Text style={styles.sectionTitle}>Лоты игроков</Text>
         {publicListings.length === 0 ? (
           <Text style={styles.muted}>Пока нет доступных лотов</Text>
         ) : (
-          publicListings.map((l) => (
-            <View key={`pub-${l.id}`} style={[styles.listingCard, isCompact && styles.listingCardCompact]}>
-              <Image
-                source={{ uri: l.imageUrl }}
-                style={[styles.listingThumb, isCompact && styles.listingThumbCompact]}
-                resizeMode="contain"
-              />
-              <View style={[styles.listingBody, isCompact && styles.listingBodyCompact]}>
-                <Text style={styles.listingName}>{l.name}</Text>
+          <View style={styles.grid}>
+            {publicListings.map((l) => (
+              <View key={`pub-${l.id}`} style={styles.listingCard}>
+                <View style={styles.listingThumbWrap}>
+                  <Image source={{ uri: l.imageUrl }} style={styles.listingThumb} resizeMode="contain" />
+                </View>
+                <Text style={styles.listingName} numberOfLines={1}>{l.name}</Text>
                 <Text style={styles.listingMeta}>
                   Продавец: {l.seller_username ?? `#${l.seller_user_id}`}
                 </Text>
                 <Text style={styles.listingMeta}>
                   {l.price_per_unit} BEANZ · Осталось: {l.quantity_left}
                 </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.smallBtn,
+                    buyingId === l.id && styles.actionBtnDisabled,
+                  ]}
+                  disabled={buyingId === l.id || beanz < l.price_per_unit}
+                  onPress={() => onBuyOne(l)}
+                >
+                  <Text style={styles.smallBtnText}>{buyingId === l.id ? '...' : 'Купить 1'}</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={[
-                  styles.smallBtn,
-                  isCompact && styles.smallBtnCompact,
-                  buyingId === l.id && styles.actionBtnDisabled,
-                ]}
-                disabled={buyingId === l.id || beanz < l.price_per_unit}
-                onPress={() => onBuyOne(l)}
-              >
-                <Text style={styles.smallBtnText}>{buyingId === l.id ? '...' : 'Купить 1'}</Text>
-              </TouchableOpacity>
-            </View>
-          ))
+            ))}
+          </View>
         )}
       </ScrollView>
     </View>
@@ -478,84 +315,38 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 8,
   },
-
-  itemsRow: { gap: 10, paddingBottom: 8 },
-  sellItemCard: {
-    backgroundColor: NFT.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: NFT.cardBorder,
-    padding: 10,
-  },
-  sellItemCardActive: { borderColor: NFT.cyan },
-  sellThumb: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: NFT.surface,
-    borderRadius: 8,
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 10,
     marginBottom: 8,
   },
-  sellName: { color: NFT.text, fontWeight: '700', fontSize: 12 },
-  sellMeta: { color: NFT.textMuted, fontSize: 11, marginTop: 4 },
-
-  formCard: {
-    backgroundColor: NFT.card,
-    borderWidth: 1,
-    borderColor: NFT.cardBorder,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  formLabel: { color: NFT.textMuted, fontSize: 12, marginBottom: 6, fontWeight: '600' },
-  input: {
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: NFT.cardBorder,
-    backgroundColor: NFT.surface,
-    color: NFT.text,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-  },
-  hint: { color: NFT.textMuted, fontSize: 11, marginBottom: 10 },
-  actionBtn: {
-    height: 44,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: NFT.purpleDim,
-  },
-  actionBtnDisabled: { opacity: 0.5 },
-  actionBtnText: { color: NFT.text, fontWeight: '700' },
 
   listingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    width: '48%',
+    minWidth: 150,
     backgroundColor: NFT.card,
     borderWidth: 1,
     borderColor: NFT.cardBorder,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 10,
-    marginBottom: 8,
+    gap: 6,
   },
-  listingCardCompact: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    gap: 8,
-  },
-  listingThumb: { width: 52, height: 52, borderRadius: 8, backgroundColor: NFT.surface },
-  listingThumbCompact: {
-    width: 64,
-    height: 64,
-  },
-  listingBody: { flex: 1 },
-  listingBodyCompact: {
+  listingThumbWrap: {
     width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    backgroundColor: NFT.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
+  listingThumb: { width: '90%', height: '90%' },
   listingName: { color: NFT.text, fontSize: 13, fontWeight: '700' },
-  listingMeta: { color: NFT.textMuted, fontSize: 11, marginTop: 3 },
+  listingMeta: { color: NFT.textMuted, fontSize: 11 },
   smallBtn: {
     borderWidth: 1,
     borderColor: NFT.purpleDim,
@@ -564,9 +355,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     minHeight: 40,
     justifyContent: 'center',
-  },
-  smallBtnCompact: {
     alignItems: 'center',
+    marginTop: 4,
   },
+  actionBtnDisabled: { opacity: 0.5 },
   smallBtnText: { color: NFT.text, fontSize: 12, fontWeight: '700' },
 });

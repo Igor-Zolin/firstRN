@@ -1,6 +1,7 @@
 function registerSnapshotRoutes(app, deps) {
   const { db, authenticateToken, game } = deps;
   const { getFreshStats, toClientStats, countEquippedCopies } = game;
+  const STARTER_ITEM_IDS = new Set([37, 84, 70, 97]);
 
   const dbGet = (sql, params = []) =>
     new Promise((resolve, reject) => {
@@ -159,7 +160,7 @@ function registerSnapshotRoutes(app, deps) {
                 maxListable,
               };
             })
-            .filter((r) => r.maxListable > 0);
+            .filter((r) => r.maxListable > 0 && !STARTER_ITEM_IDS.has(Number(r.item_id)));
         })();
       }
 

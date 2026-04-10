@@ -1,6 +1,7 @@
 function registerMarketRoutes(app, deps) {
   const { db, authenticateToken, game } = deps;
   const { nowSec, applyTick, countEquippedCopies } = game;
+  const STARTER_ITEM_IDS = new Set([37, 84, 70, 97]);
 
   app.get('/api/market/sellable', authenticateToken, (req, res) => {
     const userId = req.user.id;
@@ -36,7 +37,7 @@ function registerMarketRoutes(app, deps) {
                   maxListable,
                 };
               })
-              .filter((r) => r.maxListable > 0);
+              .filter((r) => r.maxListable > 0 && !STARTER_ITEM_IDS.has(Number(r.item_id)));
 
             return res.json(sellable);
           }
@@ -109,6 +110,9 @@ function registerMarketRoutes(app, deps) {
     const pricePerUnit = Math.floor(Number(req.body?.pricePerUnit ?? req.body?.price));
 
     if (!itemId) return res.status(400).json({ error: 'Invalid itemId' });
+    if (STARTER_ITEM_IDS.has(itemId)) {
+      return res.status(400).json({ error: 'Starter items cannot be listed on market' });
+    }
     if (!quantity || quantity < 1) return res.status(400).json({ error: 'Quantity must be >= 1' });
     if (!pricePerUnit || pricePerUnit < 1) return res.status(400).json({ error: 'Price must be >= 1' });
 

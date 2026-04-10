@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
   balanceValue: { fontSize: 18, fontWeight: '800', color: NFT.text },
   balanceLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 2, color: NFT.beanz, marginTop: 4 },
 
-  tabsWrap: { marginBottom: 12 },
+  tabsWrap: { marginBottom: 12, minHeight: 40 },
   tabs: {
     flexDirection: 'row',
     alignItems: 'center',

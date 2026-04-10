@@ -1,6 +1,23 @@
 function registerEquipRoutes(app, deps) {
   const { db, authenticateToken, requireDevRoute, game } = deps;
   const { nowSec } = game;
+  const START_BY_SLOT = {
+    background: 37,
+    eyes: 84,
+    cloth: 70,
+    hat: 97,
+    weapon: null,
+  };
+
+  function normalizeEquippedRow(row) {
+    return {
+      backgroundItemId: row?.background_item_id ?? null,
+      weaponItemId: row?.weapon_item_id ?? null,
+      eyesItemId: row?.eyes_item_id ?? null,
+      clothItemId: row?.cloth_item_id ?? null,
+      hatItemId: row?.hat_item_id ?? null,
+    };
+  }
 
   app.get('/api/equip/me', authenticateToken, (req, res) => {
     const userId = req.user.id;
@@ -100,18 +117,65 @@ function registerEquipRoutes(app, deps) {
 
                   return res.json({
                     ok: true,
-                    equipped: {
-                      backgroundItemId: row.background_item_id ?? null,
-                      weaponItemId: row.weapon_item_id ?? null,
-                      eyesItemId: row.eyes_item_id ?? null,
-                      clothItemId: row.cloth_item_id ?? null,
-                      hatItemId: row.hat_item_id ?? null,
-                    },
+                    equipped: normalizeEquippedRow(row),
                   });
                 });
               }
             );
           });
+        }
+      );
+    });
+  });
+
+  app.post('/api/equip/unequip', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { slot } = req.body || {};
+
+    const allowedSlots = new Set(['background', 'weapon', 'eyes', 'cloth', 'hat']);
+    if (!allowedSlots.has(slot)) {
+      return res.status(400).json({ error: 'Invalid slot' });
+    }
+
+    const colMap = {
+      background: 'background_item_id',
+      weapon: 'weapon_item_id',
+      eyes: 'eyes_item_id',
+      cloth: 'cloth_item_id',
+      hat: 'hat_item_id',
+    };
+
+    const col = colMap[slot];
+    const fallbackItemId = START_BY_SLOT[slot];
+    const now = nowSec();
+
+    db.serialize(() => {
+      db.run(
+        `INSERT OR IGNORE INTO user_equipped (user_id, updated_at) VALUES (?, ?)`,
+        [userId, now],
+        (e1) => {
+          if (e1) return res.status(500).json({ error: 'Failed to init equipped' });
+
+          db.run(
+            `UPDATE user_equipped
+             SET ${col} = ?, updated_at = ?
+             WHERE user_id = ?`,
+            [fallbackItemId, now, userId],
+            (e2) => {
+              if (e2) return res.status(500).json({ error: 'Failed to unequip item' });
+
+              db.get(`SELECT * FROM user_equipped WHERE user_id = ?`, [userId], (e3, row) => {
+                if (e3) return res.status(500).json({ error: 'Failed to fetch equipped' });
+
+                return res.json({
+                  ok: true,
+                  slot,
+                  fallbackItemId,
+                  equipped: normalizeEquippedRow(row),
+                });
+              });
+            }
+          );
         }
       );
     });
