@@ -7,6 +7,7 @@ const {
   PORT,
   ENABLE_DEV_ROUTES,
   JWT_SECRET,
+  CORS_ALLOWED_ORIGINS,
   // TON_NETWORK,
   // TON_MARKET_RECEIVER,
   // TON_MARKET_ENABLED,
@@ -30,6 +31,8 @@ const { registerAvatarRoutes } = require('./routes/avatar.routes');
 const { registerSnapshotRoutes } = require('./routes/snapshot.routes');
 
 const app = express();
+const LOCAL_ORIGIN_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?$/i;
+const allowedOrigins = new Set(CORS_ALLOWED_ORIGINS);
 
 app.use(express.json());
 app.use('/static', express.static(path.join(__dirname, '..', 'public')));
@@ -38,9 +41,7 @@ app.use(
     origin(origin, cb) {
       if (!origin) return cb(null, true);
 
-      const ok =
-        origin.startsWith('http://localhost:') ||
-        origin.startsWith('http://127.0.0.1:');
+      const ok = LOCAL_ORIGIN_RE.test(origin) || allowedOrigins.has(origin);
 
       cb(ok ? null : new Error('Not allowed by CORS'), ok);
     },
