@@ -206,7 +206,7 @@ function registerActionRoutes(app, deps) {
         const stmt = db.prepare(`
           INSERT INTO inventory (user_id, item_id, quantity)
           VALUES (?, ?, ?)
-          ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = excluded.quantity
+          ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = EXCLUDED.quantity
         `);
 
         for (const row of starter) stmt.run(row);
@@ -229,12 +229,12 @@ function registerActionRoutes(app, deps) {
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
-              background_item_id = excluded.background_item_id,
-              weapon_item_id     = excluded.weapon_item_id,
-              eyes_item_id       = excluded.eyes_item_id,
-              cloth_item_id      = excluded.cloth_item_id,
-              hat_item_id        = excluded.hat_item_id,
-              updated_at         = excluded.updated_at
+              background_item_id = EXCLUDED.background_item_id,
+              weapon_item_id     = EXCLUDED.weapon_item_id,
+              eyes_item_id       = EXCLUDED.eyes_item_id,
+              cloth_item_id      = EXCLUDED.cloth_item_id,
+              hat_item_id        = EXCLUDED.hat_item_id,
+              updated_at         = EXCLUDED.updated_at
             `,
             [userId, 37, null, 84, 70, 97, now],
             (e3) => {

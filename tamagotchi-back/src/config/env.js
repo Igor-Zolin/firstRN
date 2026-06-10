@@ -10,6 +10,11 @@ const CORS_ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || '')
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean);
+const DATABASE_URL = process.env.DATABASE_URL || '';
+const DATABASE_SSL = process.env.DATABASE_SSL === 'true';
+const DATABASE_SSL_REJECT_UNAUTHORIZED =
+  process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false';
+const DATABASE_POOL_MAX = Math.max(1, Number(process.env.DATABASE_POOL_MAX || 10));
 // const TON_NETWORK = process.env.TON_NETWORK || 'testnet';
 // const TON_MARKET_RECEIVER = process.env.TON_MARKET_RECEIVER || null;
 // const TON_MARKET_ENABLED = process.env.TON_MARKET_ENABLED === 'true';
@@ -24,6 +29,10 @@ module.exports = {
   ENABLE_DEV_ROUTES,
   JWT_SECRET,
   CORS_ALLOWED_ORIGINS,
+  DATABASE_URL,
+  DATABASE_SSL,
+  DATABASE_SSL_REJECT_UNAUTHORIZED,
+  DATABASE_POOL_MAX,
   // TON_NETWORK,
   // TON_MARKET_RECEIVER,
   // TON_MARKET_ENABLED,

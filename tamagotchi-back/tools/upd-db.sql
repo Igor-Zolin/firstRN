@@ -1,2 +1,3 @@
--- database: ../db.sqlite
-
+-- Legacy placeholder retained for compatibility.
+-- The canonical PostgreSQL schema is ../src/database/schema.sql.
+-- Apply it with: npm run db:init

@@ -121,7 +121,7 @@ function registerMarketRoutes(app, deps) {
     const rollback = (status, payload) => db.run('ROLLBACK', () => res.status(status).json(payload));
 
     db.serialize(() => {
-      db.run('BEGIN IMMEDIATE TRANSACTION', (eBegin) => {
+      db.run('BEGIN TRANSACTION', (eBegin) => {
         if (eBegin) return res.status(500).json({ error: 'Failed to begin transaction' });
 
         db.get(`SELECT id, name, type, model_name, rarity FROM items WHERE id = ?`, [itemId], (e1, item) => {
@@ -129,7 +129,7 @@ function registerMarketRoutes(app, deps) {
           if (!item) return rollback(404, { error: 'Item not found' });
 
           db.get(
-            `SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?`,
+            `SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ? FOR UPDATE`,
             [userId, itemId],
             (e2, invRow) => {
               if (e2) return rollback(500, { error: 'Failed to fetch inventory' });
@@ -224,13 +224,14 @@ function registerMarketRoutes(app, deps) {
     const rollback = (status, payload) => db.run('ROLLBACK', () => res.status(status).json(payload));
 
     db.serialize(() => {
-      db.run('BEGIN IMMEDIATE TRANSACTION', (eBegin) => {
+      db.run('BEGIN TRANSACTION', (eBegin) => {
         if (eBegin) return res.status(500).json({ error: 'Failed to begin transaction' });
 
         db.get(
           `SELECT id, item_id, quantity_left
            FROM market_listings
-           WHERE id = ? AND seller_user_id = ? AND status = 'active'`,
+           WHERE id = ? AND seller_user_id = ? AND status = 'active'
+           FOR UPDATE`,
           [listingId, userId],
           (e1, listing) => {
             if (e1) return rollback(500, { error: 'Failed to fetch listing' });
@@ -259,7 +260,7 @@ function registerMarketRoutes(app, deps) {
                   `INSERT INTO inventory (user_id, item_id, quantity)
                    VALUES (?, ?, ?)
                    ON CONFLICT(user_id, item_id)
-                   DO UPDATE SET quantity = quantity + excluded.quantity`,
+                   DO UPDATE SET quantity = inventory.quantity + EXCLUDED.quantity`,
                   [userId, listing.item_id, qtyToReturn],
                   (e3) => {
                     if (e3) return rollback(500, { error: 'Failed to return inventory' });
@@ -288,7 +289,7 @@ function registerMarketRoutes(app, deps) {
       const rollback = (status, payload) => db.run('ROLLBACK', () => res.status(status).json(payload));
 
       db.serialize(() => {
-        db.run('BEGIN IMMEDIATE TRANSACTION', (eBegin) => {
+        db.run('BEGIN TRANSACTION', (eBegin) => {
           if (eBegin) return res.status(500).json({ error: 'Failed to begin transaction' });
 
           db.get(
@@ -296,7 +297,8 @@ function registerMarketRoutes(app, deps) {
                     it.name, it.type, it.rarity, it.model_name
              FROM market_listings l
              JOIN items it ON it.id = l.item_id
-             WHERE l.id = ? AND l.status = 'active' AND l.quantity_left > 0`,
+             WHERE l.id = ? AND l.status = 'active' AND l.quantity_left > 0
+             FOR UPDATE OF l`,
             [listingId],
             (e1, listing) => {
               if (e1) return rollback(500, { error: 'Failed to fetch listing' });
@@ -333,7 +335,7 @@ function registerMarketRoutes(app, deps) {
                         `INSERT INTO inventory (user_id, item_id, quantity)
                          VALUES (?, ?, ?)
                          ON CONFLICT(user_id, item_id)
-                         DO UPDATE SET quantity = quantity + excluded.quantity`,
+                         DO UPDATE SET quantity = inventory.quantity + EXCLUDED.quantity`,
                         [buyerId, listing.item_id, quantity],
                         (e4) => {
                           if (e4) return rollback(500, { error: 'Failed to add inventory' });

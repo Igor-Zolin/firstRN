@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tamagotchi
+      POSTGRES_USER: tamagotchi
+      POSTGRES_PASSWORD: tamagotchi
+    ports:
+      - "5432:5432"
+    volumes:
+      - tamagotchi-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tamagotchi -d tamagotchi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  tamagotchi-postgres:

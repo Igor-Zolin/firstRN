@@ -71,8 +71,9 @@ function createGameService(db) {
   function grantStarterItems(userId, cb) {
     db.serialize(() => {
       const stmt = db.prepare(
-        `INSERT OR IGNORE INTO inventory (user_id, item_id, quantity)
-         VALUES (?, ?, 1)`
+        `INSERT INTO inventory (user_id, item_id, quantity)
+         VALUES (?, ?, 1)
+         ON CONFLICT (user_id, item_id) DO NOTHING`
       );
 
       for (const itemId of START_ITEMS) {
@@ -88,20 +89,22 @@ function createGameService(db) {
 
     db.serialize(() => {
       db.run(
-        `INSERT OR IGNORE INTO user_stats (user_id, updated_at) VALUES (?, ?)`,
+        `INSERT INTO user_stats (user_id, updated_at) VALUES (?, ?)
+         ON CONFLICT (user_id) DO NOTHING`,
         [userId, now],
         (e1) => {
           if (e1) return cb(e1);
 
           db.run(
-            `INSERT OR IGNORE INTO user_meta (user_id, last_tick_at, updated_at)
-             VALUES (?, ?, ?)`,
+            `INSERT INTO user_meta (user_id, last_tick_at, updated_at)
+             VALUES (?, ?, ?)
+             ON CONFLICT (user_id) DO NOTHING`,
             [userId, now, now],
             (e2) => {
               if (e2) return cb(e2);
 
               db.run(
-                `INSERT OR IGNORE INTO user_equipped (
+                `INSERT INTO user_equipped (
                   user_id,
                   background_item_id,
                   weapon_item_id,
@@ -109,7 +112,8 @@ function createGameService(db) {
                   cloth_item_id,
                   hat_item_id,
                   updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (user_id) DO NOTHING`,
                 [userId, 37, null, 84, 70, 97, now],
                 (e3) => {
                   if (e3) return cb(e3);

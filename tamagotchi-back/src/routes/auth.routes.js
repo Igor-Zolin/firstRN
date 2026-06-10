@@ -29,7 +29,7 @@ function registerAuthRoutes(app, deps) {
         [username, email, hashedPassword],
         function onRegistered(err2) {
           if (err2) {
-            if (err2.message.includes('UNIQUE constraint failed')) {
+            if (err2.code === '23505') {
               return res.status(409).json({ error: 'Username or email already exists' });
             }
             console.error('Error registering user:', err2.message);

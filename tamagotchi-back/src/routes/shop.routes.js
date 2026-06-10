@@ -66,7 +66,7 @@ function registerShopRoutes(app, deps) {
       };
 
       db.serialize(() => {
-        db.run('BEGIN IMMEDIATE TRANSACTION', (eBegin) => {
+        db.run('BEGIN TRANSACTION', (eBegin) => {
           if (eBegin) {
             return res.status(500).json({ error: 'Failed to begin transaction' });
           }
@@ -106,7 +106,7 @@ function registerShopRoutes(app, deps) {
                       `INSERT INTO inventory (user_id, item_id, quantity)
                        VALUES (?, ?, 1)
                        ON CONFLICT(user_id, item_id)
-                       DO UPDATE SET quantity = quantity + 1`,
+                       DO UPDATE SET quantity = inventory.quantity + 1`,
                       [userId, id],
                       (e4) => {
                         if (e4) return rollback(500, { error: 'Failed to add to inventory' });

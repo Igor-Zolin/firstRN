@@ -1,10 +1,15 @@
 {
   "name": "tamagotchi-back",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Tamagotchi API backed by PostgreSQL",
+  "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node --test",
+    "db:init": "node tools/init-db.js",
+    "db:import-items": "node tools/import-items.js",
+    "db:migrate:sqlite": "node tools/migrate-sqlite-to-postgres.js"
   },
   "keywords": [],
   "author": "",
@@ -17,7 +22,10 @@
     "express": "^5.2.1",
     "jimp": "^1.6.0",
     "jsonwebtoken": "^9.0.3",
-    "nodemon": "^3.1.11",
-    "sqlite3": "^5.1.7"
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "sqlite3": "^6.0.1"
   }
 }

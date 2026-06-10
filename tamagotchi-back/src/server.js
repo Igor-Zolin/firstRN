@@ -83,6 +83,36 @@ registerAvatarRoutes(app, deps);
 // registerTonRoutes(app, deps);
 registerSnapshotRoutes(app, deps);
 
-app.listen(PORT, () => {
-  console.log(`[~] Server running on http://127.0.0.1:${PORT}`);
-});
+async function start() {
+  await db.init();
+
+  const server = app.listen(PORT, () => {
+    console.log(`[~] Server running on http://127.0.0.1:${PORT}`);
+  });
+
+  const shutdown = (signal) => {
+    console.log(`[~] ${signal} received, shutting down`);
+    server.close(async () => {
+      try {
+        await db.close();
+        process.exit(0);
+      } catch (err) {
+        console.error('Failed to close PostgreSQL pool:', err.message);
+        process.exit(1);
+      }
+    });
+  };
+
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  return server;
+}
+
+if (require.main === module) {
+  start().catch((err) => {
+    console.error('Failed to start server:', err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { app, start };

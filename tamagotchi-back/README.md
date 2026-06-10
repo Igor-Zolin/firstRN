@@ -1,411 +1,131 @@
-# Game API Documentation
+# Tamagotchi Backend
 
-## Описание проекта
+Express API for the mobile client and Telegram Mini App. PostgreSQL is the only runtime database. The old `db.sqlite` is used only as a source for the one-time migration script.
 
-Это бэкэнд API для игрового приложения с системой пользователей, опыта, монет и косметических скинов. Проект построен на Express.js и SQLite.
+## Architecture
 
----
-
-## Установка
-
-### 1. Требования
-
-- Node.js (v14 или выше)
-- npm
-
-### 2. Установка зависимостей
-
-```bash
-npm install express bcrypt jsonwebtoken dotenv sqlite3
+```text
+Expo app / Telegram Mini App
+            |
+          HTTPS
+            |
+        Express API
+            |
+        PostgreSQL
 ```
 
-### 3. Создание файла .env
+Do not connect a mobile app or Mini App directly to PostgreSQL. `DATABASE_URL` and database credentials must exist only on the backend.
 
-```
+## Requirements
+
+- Node.js 20+
+- PostgreSQL 14+ or Docker
+
+## Environment
+
+Copy `.env.example` to `.env` and set at least:
+
+```env
 PORT=3000
-JWT_SECRET=your_super_secret_key_change_this_in_production
+JWT_SECRET=replace_with_a_long_random_secret
+DATABASE_URL=postgresql://tamagotchi:tamagotchi@localhost:5432/tamagotchi
+DATABASE_SSL=false
 ```
 
-### 4. Запуск проекта
+For a managed PostgreSQL provider, use its connection string. If it requires TLS:
+
+```env
+DATABASE_SSL=true
+DATABASE_SSL_REJECT_UNAUTHORIZED=true
+```
+
+Use `DATABASE_SSL_REJECT_UNAUTHORIZED=false` only when the provider explicitly requires it.
+
+## Local start
+
+Start PostgreSQL with Docker:
 
 ```bash
-node index.js
+docker compose up -d postgres
 ```
 
-Сервер будет запущен на `http://127.0.0.1:3000`
+Install dependencies and initialize the schema:
 
----
-
-## API Эндпоинты
-
-### 1. Проверка здоровья сервера
-
-```
-GET /api/heartbeat
+```bash
+npm ci
+npm run db:init
 ```
 
-**Ответ:**
+Start the API:
 
-```json
-{
-  "code": 200,
-  "message": "Healthy!"
-}
+```bash
+npm run dev
 ```
 
----
+The server initializes missing tables and indexes before accepting requests.
 
-### 2. Регистрация пользователя		
+## Migrate existing SQLite data
 
-```
-POST /api/auth/register
-```
+The repository currently has a local `db.sqlite`. The migration preserves IDs, relationships, TON columns, market listings and serial sequences.
 
-**Требуемые поля:**
+Validate the SQLite source without connecting to PostgreSQL:
 
-```json
-{
-  "username": "testuser",
-  "email": "test@example.com",
-  "password": "password123",
-  "confirmPassword": "password123"
-}
+```bash
+npm run db:migrate:sqlite -- --dry-run
 ```
 
-**Успешный ответ (201):**
+Run against an empty PostgreSQL database:
 
-```json
-{
-  "code": 201,
-  "message": "User registered successfully",
-  "user": {
-    "id": 1,
-    "username": "testuser",
-    "email": "test@example.com"
-  },
-  "token": "eyJhbGc..."
-}
+```bash
+npm run db:migrate:sqlite
 ```
 
-**Ошибки:**
+Use another source file:
 
-- `400` — Отсутствуют обязательные поля или пароли не совпадают
-- `409` — Пользователь или email уже существует
-- `500` — Ошибка сервера
-
----
-
-### 3. Вход в аккаунт
-
-```
-POST /api/auth/login
+```bash
+npm run db:migrate:sqlite -- --source=C:\path\to\db.sqlite
 ```
 
-**Требуемые поля:**
+The script refuses to write into a non-empty PostgreSQL database. To deliberately replace all destination data:
 
-```json
-{
-  "username": "testuser",
-  "password": "password123"
-}
+```bash
+npm run db:migrate:sqlite -- --truncate
 ```
 
-**Успешный ответ (200):**
+`--truncate` deletes all existing PostgreSQL application data before importing.
 
-```json
-{
-  "code": 200,
-  "message": "Login successful",
-  "user": {
-    "id": 1,
-    "username": "testuser",
-    "email": "test@example.com",
-    "lvl": 5,
-    "xp": 1500,
-    "coins": 5000,
-    "beanz": 100
-  },
-  "token": "eyJhbGc..."
-}
+## Import item assets
+
+To add PNG files from `public/items` without creating duplicate `model_name` values:
+
+```bash
+npm run db:import-items
 ```
 
-**Ошибки:**
+## Commands
 
-- `400` — Отсутствуют username или password
-- `401` — Неверные учетные данные
-- `500` — Ошибка сервера
+- `npm start` - start the API
+- `npm run dev` - start with nodemon
+- `npm test` - run backend unit tests
+- `npm run db:init` - create missing PostgreSQL tables and indexes
+- `npm run db:migrate:sqlite` - migrate the old SQLite data
+- `npm run db:import-items` - import item metadata from PNG files
 
----
+## Production notes
 
-### 4. Получить профиль текущего пользователя
+- Use a managed PostgreSQL instance with backups and TLS.
+- Set `NODE_ENV=production` and a strong `JWT_SECRET`.
+- Set `CORS_ALLOWED_ORIGINS` to the deployed Mini App and web origins.
+- Keep dev routes disabled in production.
+- Run the API behind HTTPS.
+- Add Telegram `initData` signature validation before replacing username/password login with Telegram authentication.
 
-```
-GET /api/auth/me
-```
+## Main API groups
 
-**Заголовки:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Успешный ответ (200):**
-
-```json
-{
-  "id": 1,
-  "username": "testuser",
-  "email": "test@example.com",
-  "lvl": 5,
-  "xp": 1500,
-  "coins": 5000,
-  "beanz": 100,
-  "created_at": "2024-01-15 10:30:00"
-}
-```
-
-**Ошибки:**
-
-- `401` — Токен отсутствует
-- `403` — Токен невалиден или истёк
-- `404` — Пользователь не найден
-
----
-
-### 5. Получить инвентарь пользователя
-
-```
-GET /api/users/:id/inventory
-```
-
-**Заголовки:**
-
-```
-Authorization: Bearer <token>
-```
-
-**Пример запроса:**
-
-```
-GET /api/users/1/inventory
-```
-
-**Успешный ответ (200):**
-
-```json
-{
-  "user_id": 1,
-  "items": [
-    {
-      "id": 1,
-      "quantity": 1,
-      "name": "Golden Head",
-      "type": "head",
-      "model_name": "golden_head.png",
-      "rarity": "epic"
-    },
-    {
-      "id": 2,
-      "quantity": 1,
-      "name": "Red Body",
-      "type": "body",
-      "model_name": "red_body.png",
-      "rarity": "common"
-    }
-  ]
-}
-```
-
-**Ошибки:**
-
-- `401` — Токен отсутствует
-- `403` — Доступ запрещен (можно смотреть только свой инвентарь)
-- `500` — Ошибка сервера
-
----
-
-### 6. Получить все доступные предметы
-
-```
-GET /api/items
-```
-
-**Успешный ответ (200):**
-
-```json
-[
-  {
-    "id": 1,
-    "name": "Golden Head",
-    "type": "head",
-    "model_name": "golden_head.png",
-    "rarity": "epic",
-    "price": 500,
-    "created_at": "2024-01-15 10:30:00"
-  },
-  {
-    "id": 2,
-    "name": "Red Body",
-    "type": "body",
-    "model_name": "red_body.png",
-    "rarity": "common",
-    "price": 100,
-    "created_at": "2024-01-15 10:30:00"
-  }
-]
-```
-
----
-
-### 7. Заполнить БД тестовыми данными
-
-```
-GET /api/seed
-```
-
-**Успешный ответ (200):**
-
-```json
-{
-  "code": 200,
-  "message": "Database seeded successfully!",
-  "data": {
-    "users": 3,
-    "items": 7,
-    "inventory_entries": 8
-  }
-}
-```
-
----
-
-## Структура БД
-
-### Таблица `users`
-
-| Поле   | Тип   | Описание                                        |
-| ---------- | -------- | ------------------------------------------------------- |
-| id         | INTEGER  | Уникальный ID пользователя        |
-| username   | TEXT     | Уникальное имя пользователя    |
-| email      | TEXT     | Email (уникальный)                            |
-| password   | TEXT     | Хешированный пароль                   |
-| lvl        | INTEGER  | Уровень игрока (по умолчанию 1) |
-| xp         | INTEGER  | Опыт (по умолчанию 0)                    |
-| coins      | INTEGER  | Монеты (по умолчанию 0)                |
-| beanz      | INTEGER  | Премиум валюта (по умолчанию 0) |
-| created_at | DATETIME | Дата регистрации                         |
-
-### Таблица `items`
-
-| Поле   | Тип   | Описание                                 |
-| ---------- | -------- | ------------------------------------------------ |
-| id         | INTEGER  | Уникальный ID предмета         |
-| name       | TEXT     | Название скина                      |
-| type       | TEXT     | Тип (head, body, boots, cape)                 |
-| model_name | TEXT     | Название файла картинки     |
-| rarity     | TEXT     | Редкость (common, rare, epic, legendary) |
-| price      | INTEGER  | Цена в монетах                       |
-| created_at | DATETIME | Дата создания                        |
-
-### Таблица `inventory`
-
-| Поле    | Тип   | Описание                                 |
-| ----------- | -------- | ------------------------------------------------ |
-| id          | INTEGER  | Уникальный ID записи             |
-| user_id     | INTEGER  | ID пользователя (FK)                 |
-| item_id     | INTEGER  | ID предмета (FK)                         |
-| quantity    | INTEGER  | Количество (по умолчанию 1) |
-| acquired_at | DATETIME | Дата получения                      |
-
----
-
-## Пример использования (Client-side)
-
-### Регистрация
-
-```javascript
-const response = await fetch('http://127.0.0.1:3000/api/auth/register', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    username: 'newplayer',
-    email: 'newplayer@game.com',
-    password: 'securepass123',
-    confirmPassword: 'securepass123'
-  })
-});
-
-const data = await response.json();
-localStorage.setItem('token', data.token);
-```
-
-### Вход
-
-```javascript
-const response = await fetch('http://127.0.0.1:3000/api/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    username: 'newplayer',
-    password: 'securepass123'
-  })
-});
-
-const data = await response.json();
-localStorage.setItem('token', data.token);
-```
-
-### Получить профиль
-
-```javascript
-const token = localStorage.getItem('token');
-const response = await fetch('http://127.0.0.1:3000/api/auth/me', {
-  method: 'GET',
-  headers: { 'Authorization': `Bearer ${token}` }
-});
-
-const user = await response.json();
-console.log(user);
-```
-
-### Получить инвентарь
-
-```javascript
-const token = localStorage.getItem('token');
-const userId = 1;
-const response = await fetch(`http://127.0.0.1:3000/api/users/${userId}/inventory`, {
-  method: 'GET',
-  headers: { 'Authorization': `Bearer ${token}` }
-});
-
-const inventory = await response.json();
-console.log(inventory.items);
-```
-
----
-
-## Безопасность
-
-1. **Пароли** хешируются с помощью bcrypt перед сохранением в БД
-2. **JWT токены** используются для аутентификации (действительны 7 дней)
-3. **CORS** рекомендуется настроить перед использованием в production
-4. **JWT_SECRET** должен быть сильным и приватным
-5. Инвентарь доступен только владельцу (проверка ID)
-
----
-
-## Возможные улучшения
-
-- Добавить CORS middleware
-- Реализовать покупку/продажу предметов
-- Добавить систему друзей
-- Реализовать лидерборд
-- Добавить refresh tokens
-- Валидировать email с отправкой письма
-- Добавить рейт-лимитинг
-
----
-
-## Лицензия
-
-MIT
+- `/api/auth/*` - registration, login, current user
+- `/api/stats/*` and `/api/actions/*` - game state and upgrades
+- `/api/shop/*` - item catalog and purchases
+- `/api/market/*` - player marketplace
+- `/api/inventory/*` and `/api/equip/*` - inventory and equipped items
+- `/api/snapshot/*` - aggregated client snapshots
+- `/api/heartbeat` - API and database readiness

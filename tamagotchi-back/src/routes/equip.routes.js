@@ -33,7 +33,8 @@ function registerEquipRoutes(app, deps) {
         if (!row) {
           const now = nowSec();
           return db.run(
-            `INSERT OR IGNORE INTO user_equipped (user_id, updated_at) VALUES (?, ?)`,
+            `INSERT INTO user_equipped (user_id, updated_at) VALUES (?, ?)
+             ON CONFLICT (user_id) DO NOTHING`,
             [userId, now],
             (e2) => {
               if (e2) return res.status(500).json({ error: 'Failed to init equipped' });
@@ -100,7 +101,8 @@ function registerEquipRoutes(app, deps) {
 
           db.serialize(() => {
             db.run(
-              `INSERT OR IGNORE INTO user_equipped (user_id, updated_at) VALUES (?, ?)`,
+              `INSERT INTO user_equipped (user_id, updated_at) VALUES (?, ?)
+             ON CONFLICT (user_id) DO NOTHING`,
               [userId, now]
             );
 
@@ -151,7 +153,8 @@ function registerEquipRoutes(app, deps) {
 
     db.serialize(() => {
       db.run(
-        `INSERT OR IGNORE INTO user_equipped (user_id, updated_at) VALUES (?, ?)`,
+        `INSERT INTO user_equipped (user_id, updated_at) VALUES (?, ?)
+             ON CONFLICT (user_id) DO NOTHING`,
         [userId, now],
         (e1) => {
           if (e1) return res.status(500).json({ error: 'Failed to init equipped' });
@@ -186,8 +189,9 @@ function registerEquipRoutes(app, deps) {
 
     db.serialize(() => {
       db.run(`
-        INSERT OR IGNORE INTO user_equipped (user_id, updated_at)
+        INSERT INTO user_equipped (user_id, updated_at)
         SELECT id, ${now} FROM users
+        ON CONFLICT (user_id) DO NOTHING
       `);
 
       db.run(

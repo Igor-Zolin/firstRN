@@ -1,46 +1,39 @@
 const path = require('path');
 const fs = require('fs');
-const sqlite3 = require('sqlite3').verbose();
+const db = require('../src/database/db');
 
-const DB_PATH = path.join(__dirname, '..', 'db.sqlite'); // поправь если БД в другом месте
 const ITEMS_DIR = path.join(__dirname, '..', 'public', 'items');
-
-const db = new sqlite3.Database(DB_PATH);
 
 function walk(dir) {
   const result = [];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-
-    if (e.isDirectory()) {
-      result.push(...walk(full));
-    } else if (e.isFile()) {
-      const ext = path.extname(e.name).toLowerCase();
-      if (ext === '.png') result.push(full);
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      result.push(...walk(fullPath));
+    } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.png') {
+      result.push(fullPath);
     }
   }
+
   return result;
 }
 
-// "golden_head.png" -> "Golden Head"
 function humanize(filename) {
   const base = filename.replace(/\.[^/.]+$/, '');
   return base
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-// Простейшие дефолты (потом можно сделать умнее)
-function defaultRarity(type, modelName) {
-  // пример: если в имени есть legendary/epic/rare/common
-  const s = modelName.toLowerCase();
-  if (s.includes('legendary')) return 'legendary';
-  if (s.includes('epic')) return 'epic';
-  if (s.includes('rare')) return 'rare';
+function defaultRarity(modelName) {
+  const value = modelName.toLowerCase();
+  if (value.includes('legendary')) return 'legendary';
+  if (value.includes('epic')) return 'epic';
+  if (value.includes('rare')) return 'rare';
   return 'common';
 }
 
@@ -51,48 +44,45 @@ function defaultPrice(rarity) {
   return 100;
 }
 
-db.serialize(() => {
-  // 1) защита от дублей
-  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_items_model_name ON items(model_name)`);
+async function main() {
+  await db.init();
+  const client = await db.pool.connect();
 
-  const files = walk(ITEMS_DIR);
+  try {
+    const files = walk(ITEMS_DIR);
+    let inserted = 0;
 
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO items (name, type, model_name, rarity, price)
-    VALUES (?, ?, ?, ?, ?)
-  `);
+    await client.query('BEGIN');
+    for (const absolutePath of files) {
+      const modelName = path.relative(ITEMS_DIR, absolutePath).replaceAll('\\', '/');
+      const parts = modelName.split('/');
+      const type = parts.length > 1 ? parts[0] : 'misc';
+      const name = humanize(path.basename(modelName));
+      const rarity = defaultRarity(modelName);
+      const price = defaultPrice(rarity);
 
-  let inserted = 0;
+      const result = await client.query(
+        `INSERT INTO items (name, type, model_name, rarity, price)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (model_name) DO NOTHING`,
+        [name, type, modelName, rarity, price]
+      );
+      inserted += result.rowCount;
+    }
+    await client.query('COMMIT');
 
-  for (const absPath of files) {
-    // relative от public/items/
-    const relFromItems = path.relative(ITEMS_DIR, absPath).replaceAll('\\', '/');
-    // type = первая папка (hair/weapon/eyes/...)
-    const parts = relFromItems.split('/');
-    const type = parts.length > 1 ? parts[0] : 'misc';
-
-    const fileName = path.basename(relFromItems);
-    const name = humanize(fileName);
-
-    const rarity = defaultRarity(type, relFromItems);
-    const price = defaultPrice(rarity);
-
-    // model_name храним как "hair/xxx.png"
-    const model_name = relFromItems;
-
-    stmt.run([name, type, model_name, rarity, price], function (err) {
-      if (err) {
-        console.error('Insert error:', err.message, model_name);
-      } else {
-        // changes = 1 если реально вставили, 0 если IGNORE
-        inserted += this.changes;
-      }
-    });
-  }
-
-  stmt.finalize(() => {
     console.log(`[OK] scanned: ${files.length} png`);
     console.log(`[OK] inserted: ${inserted} new items`);
-    db.close();
-  });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+    await db.close();
+  }
+}
+
+main().catch((err) => {
+  console.error('[ERROR] Item import failed:', err.message);
+  process.exit(1);
 });

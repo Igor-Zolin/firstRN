@@ -1,6 +1,5 @@
 # Зависимости
 node_modules/
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
@@ -51,6 +50,8 @@ coverage/
 .nyc_output/
 
 # Другое
+.env.*
+!.env.example
 .env.vault
 .env.keys
 *.pem
