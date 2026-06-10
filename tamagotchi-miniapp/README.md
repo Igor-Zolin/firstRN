@@ -10,6 +10,8 @@ React + TypeScript + Vite клиент, подготовленный для за
 - нативная кнопка Back для внутренних маршрутов;
 - автоматическая авторизация через подписанный `initData`;
 - обычная форма входа как fallback для локальной браузерной разработки.
+- стандартная кнопка TON Connect на главном экране;
+- серверная привязка кошелька через одноразовый `ton_proof`.
 
 `initDataUnsafe` не используется для авторизации. Клиент передаёт исходную строку
 `initData` серверу, а сервер проверяет HMAC-подпись с помощью токена бота.
@@ -26,6 +28,8 @@ npm run dev
 
 ```env
 VITE_API_BASE_URL=https://api.example.com
+VITE_TONCONNECT_MANIFEST_URL=https://api.example.com/tonconnect-manifest.json
+VITE_TELEGRAM_MINIAPP_URL=https://t.me/<bot_username>?startapp
 ```
 
 ## Production build
@@ -52,9 +56,21 @@ JWT_SECRET=long-random-secret
 TELEGRAM_BOT_TOKEN=123456789:token-from-botfather
 TELEGRAM_AUTH_MAX_AGE_SECONDS=86400
 CORS_ALLOWED_ORIGINS=https://miniapp.example.com
+TON_NETWORK=testnet
+TON_CONNECT_DOMAIN=miniapp.example.com
+TON_CONNECT_APP_URL=https://miniapp.example.com
+TON_CONNECT_ICON_URL=https://miniapp.example.com/tonconnect-icon.png
 ```
 
 Токен бота нельзя добавлять в React env, JavaScript bundle или git.
+
+`TON_CONNECT_DOMAIN` указывается без протокола и пути. Он должен точно
+совпадать с доменом, который кошелёк подпишет в `ton_proof`.
+
+Manifest доступен через backend endpoint `/tonconnect-manifest.json`.
+`TON_CONNECT_APP_URL` и `TON_CONNECT_ICON_URL` должны быть публичными HTTPS
+URL. Файл `public/tonconnect-icon.png` должен публиковаться вместе с React
+приложением.
 
 ## Настройка в BotFather
 

@@ -10,7 +10,15 @@ const {
   CORS_ALLOWED_ORIGINS,
   TELEGRAM_BOT_TOKEN,
   TELEGRAM_AUTH_MAX_AGE_SECONDS,
-  // TON_NETWORK,
+  TON_NETWORK,
+  TON_CONNECT_DOMAIN,
+  TON_CONNECT_APP_URL,
+  TON_CONNECT_APP_NAME,
+  TON_CONNECT_ICON_URL,
+  TON_CONNECT_TERMS_URL,
+  TON_CONNECT_PRIVACY_URL,
+  TON_PROOF_TTL_SECONDS,
+  TON_PROOF_MAX_AGE_SECONDS,
   // TON_MARKET_RECEIVER,
   // TON_MARKET_ENABLED,
 } = require('./config/env');
@@ -29,7 +37,7 @@ const { registerMarketRoutes } = require('./routes/market.routes');
 const { registerInventoryRoutes } = require('./routes/inventory.routes');
 const { registerEquipRoutes } = require('./routes/equip.routes');
 const { registerAvatarRoutes } = require('./routes/avatar.routes');
-// const { registerTonRoutes } = require('./routes/ton.routes');
+const { registerTonRoutes } = require('./routes/ton.routes');
 const { registerSnapshotRoutes } = require('./routes/snapshot.routes');
 
 const app = express();
@@ -67,8 +75,18 @@ const deps = {
   requireDevRoute,
   game,
   avatarService,
-  // tonConfig: {
-  //   network: TON_NETWORK,
+  tonConfig: {
+    network: TON_NETWORK,
+    domain: TON_CONNECT_DOMAIN,
+    appUrl: TON_CONNECT_APP_URL,
+    appName: TON_CONNECT_APP_NAME,
+    iconUrl: TON_CONNECT_ICON_URL,
+    termsUrl: TON_CONNECT_TERMS_URL,
+    privacyUrl: TON_CONNECT_PRIVACY_URL,
+    proofTtlSeconds: TON_PROOF_TTL_SECONDS,
+    proofMaxAgeSeconds: TON_PROOF_MAX_AGE_SECONDS,
+  },
+  // marketTonConfig: {
   //   marketReceiver: TON_MARKET_RECEIVER,
   //   marketEnabled: TON_MARKET_ENABLED,
   // },
@@ -84,7 +102,7 @@ registerMarketRoutes(app, deps);
 registerInventoryRoutes(app, deps);
 registerEquipRoutes(app, deps);
 registerAvatarRoutes(app, deps);
-// registerTonRoutes(app, deps);
+registerTonRoutes(app, deps);
 registerSnapshotRoutes(app, deps);
 
 async function start() {

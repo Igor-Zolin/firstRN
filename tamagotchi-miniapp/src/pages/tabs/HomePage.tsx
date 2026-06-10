@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { TonConnectButton } from '@tonconnect/ui-react';
 import {
   cheat,
   dailyClaim,
@@ -11,6 +12,7 @@ import {
   upgrade,
 } from '../../api/client';
 import type { Equipped, InventoryItem, Stats } from '../../types';
+import { useTonWalletBinding } from '../../ton/TonConnectProvider';
 
 const defaultEquipped: Equipped = {
   backgroundItemId: null,
@@ -27,6 +29,7 @@ function byId(items: InventoryItem[]) {
 }
 
 export function HomePage() {
+  const tonWallet = useTonWalletBinding();
   const [stats, setStats] = useState<Stats | null>(null);
   const [equipped, setEquipped] = useState<Equipped>(defaultEquipped);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -123,9 +126,27 @@ export function HomePage() {
     <section className="screen screen-home">
       <div className="screen-scroll">
         <div className="home-header">
-          <div>
-            <p className="header-label">COLLECTION</p>
-            <h2 className="header-title">Shao</h2>
+          <div className="home-header-top">
+            <div>
+              <p className="header-label">COLLECTION</p>
+              <h2 className="header-title">Shao</h2>
+            </div>
+
+            <div className="home-ton-wallet">
+              <TonConnectButton />
+              <span
+                className={`home-ton-status home-ton-status-${tonWallet.status}`}
+                title={tonWallet.error || undefined}
+              >
+                {tonWallet.verified
+                  ? 'Wallet verified'
+                  : tonWallet.status === 'verifying'
+                    ? 'Verifying wallet...'
+                    : tonWallet.status === 'error'
+                      ? 'Wallet proof failed'
+                      : 'Connect wallet to mint'}
+              </span>
+            </div>
           </div>
 
           <div className="home-level-row">

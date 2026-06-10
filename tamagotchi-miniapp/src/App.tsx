@@ -17,6 +17,7 @@ import { HomePage } from './pages/tabs/HomePage';
 import { MarketPage } from './pages/tabs/MarketPage';
 import { ProfilePage } from './pages/tabs/ProfilePage';
 import { ShopPage } from './pages/tabs/ShopPage';
+import { AppTonConnectProvider } from './ton/TonConnectProvider';
 import {
   initTelegramMiniApp,
   subscribeTelegramBackButton,
@@ -43,25 +44,27 @@ function RootLayout() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<RootLayout />}>
-            <Route element={<AuthLayout />}>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+      <AppTonConnectProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<RootLayout />}>
+              <Route element={<AuthLayout />}>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+              </Route>
+
+              <Route element={<TabsLayout />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/shop" element={<ShopPage />} />
+                <Route path="/market" element={<MarketPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+              </Route>
             </Route>
 
-            <Route element={<TabsLayout />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/shop" element={<ShopPage />} />
-              <Route path="/market" element={<MarketPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-            </Route>
-          </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AppTonConnectProvider>
     </AuthProvider>
   );
 }

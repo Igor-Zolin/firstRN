@@ -14,6 +14,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS language_code TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ton_wallet_network TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ton_wallet_public_key TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_telegram_id
   ON users(telegram_id);
@@ -21,6 +23,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_telegram_id
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ton_wallet_address
   ON users(ton_wallet_address)
   WHERE ton_wallet_address IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS ton_proof_challenges (
+  payload TEXT PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at BIGINT NOT NULL,
+  used_at BIGINT,
+  created_at BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW())::BIGINT)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ton_proof_challenges_user
+  ON ton_proof_challenges(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ton_proof_challenges_expiry
+  ON ton_proof_challenges(expires_at)
+  WHERE used_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS user_stats (
   user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,

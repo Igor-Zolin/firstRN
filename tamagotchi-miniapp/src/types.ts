@@ -131,4 +131,22 @@ export type User = {
   username: string;
   email: string;
   created_at?: string;
+  ton_wallet_address?: string | null;
+  ton_wallet_network?: 'testnet' | 'mainnet' | null;
+  ton_wallet_connected_at?: number | null;
+};
+
+export type TonWalletBinding = {
+  walletAddress: string | null;
+  walletAddressFriendly: string | null;
+  network: 'testnet' | 'mainnet' | null;
+  connectedAt: number | null;
+};
+
+export type TonProofChallenge = {
+  payload: string;
+  expiresAt: number;
+  domain: string;
+  network: 'testnet' | 'mainnet';
+  chain: '-239' | '-3';
 };

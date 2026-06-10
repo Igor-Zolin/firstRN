@@ -62,4 +62,3 @@ coverage/
 /public/items
 
 # TON (temporarily disabled)
-src/routes/ton.routes.js

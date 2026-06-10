@@ -9,6 +9,8 @@ import type {
   ProfileSnapshot,
   ShopItem,
   Stats,
+  TonProofChallenge,
+  TonWalletBinding,
   User,
 } from '../types';
 
@@ -149,6 +151,49 @@ export async function loginWithTelegram(initData: string) {
 
 export async function me() {
   return request('/api/auth/me') as Promise<User>;
+}
+
+export async function createTonProofChallenge() {
+  return request('/api/tonconnect/nonce', {
+    method: 'POST',
+  }) as Promise<TonProofChallenge>;
+}
+
+export async function verifyTonWallet(payload: {
+  account: {
+    address: string;
+    chain: string;
+    walletStateInit: string;
+    publicKey?: string;
+  };
+  proof: {
+    timestamp: number;
+    domain: {
+      lengthBytes: number;
+      value: string;
+    };
+    payload: string;
+    signature: string;
+  };
+}) {
+  return request('/api/tonconnect/verify', {
+    method: 'POST',
+    body: payload,
+  }) as Promise<{
+    ok: boolean;
+    wallet: TonWalletBinding;
+    walletVersion: string;
+  }>;
+}
+
+export async function getTonWalletMe() {
+  return request('/api/ton/wallet/me') as Promise<TonWalletBinding>;
+}
+
+export async function unlinkTonWallet() {
+  return request('/api/ton/wallet/me', {
+    method: 'DELETE',
+  }) as Promise<{ ok: boolean }>;
 }
 
 export async function getMyStats() {

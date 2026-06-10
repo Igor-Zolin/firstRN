@@ -21,6 +21,9 @@ function toPublicUser(user) {
     last_name: user.last_name,
     language_code: user.language_code,
     photo_url: user.photo_url,
+    ton_wallet_address: user.ton_wallet_address,
+    ton_wallet_network: user.ton_wallet_network,
+    ton_wallet_connected_at: user.ton_wallet_connected_at,
   };
 }
 
@@ -221,7 +224,8 @@ function registerAuthRoutes(app, deps) {
   app.get('/api/auth/me', authenticateToken, (req, res) => {
     db.get(
       `SELECT id, username, email, created_at, telegram_id, telegram_username,
-              first_name, last_name, language_code, photo_url
+              first_name, last_name, language_code, photo_url,
+              ton_wallet_address, ton_wallet_network, ton_wallet_connected_at
        FROM users
        WHERE id = ?`,
       [req.user.id],
