@@ -54,7 +54,7 @@ function registerMarketRoutes(app, deps) {
     db.all(
       `SELECT l.id, l.seller_user_id, l.item_id, l.price_per_unit, l.quantity_total, l.quantity_left,
               l.status, l.created_at, l.updated_at,
-              u.username AS seller_username,
+              COALESCE(NULLIF(u.telegram_username, ''), u.username) AS seller_username,
               it.name, it.type, it.model_name, it.rarity
        FROM market_listings l
        JOIN users u ON u.id = l.seller_user_id

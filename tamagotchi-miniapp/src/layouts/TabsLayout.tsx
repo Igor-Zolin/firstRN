@@ -12,7 +12,10 @@ export function TabsLayout() {
   const location = useLocation();
   const { isAuthed, bootLoading } = useAuth();
 
-  if (bootLoading) return null;
+  if (bootLoading) {
+    return <div className="screen-loading">Connecting...</div>;
+  }
+
   if (!isAuthed) return <Navigate to="/login" replace />;
 
   return (

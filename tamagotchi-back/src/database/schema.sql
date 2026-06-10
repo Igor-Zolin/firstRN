@@ -8,6 +8,16 @@ CREATE TABLE IF NOT EXISTS users (
   ton_wallet_connected_at BIGINT
 );
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_username TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS language_code TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_telegram_id
+  ON users(telegram_id);
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ton_wallet_address
   ON users(ton_wallet_address)
   WHERE ton_wallet_address IS NOT NULL;

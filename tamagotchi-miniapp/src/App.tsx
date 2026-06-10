@@ -1,5 +1,13 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { AuthLayout } from './layouts/AuthLayout';
 import { TabsLayout } from './layouts/TabsLayout';
@@ -9,12 +17,25 @@ import { HomePage } from './pages/tabs/HomePage';
 import { MarketPage } from './pages/tabs/MarketPage';
 import { ProfilePage } from './pages/tabs/ProfilePage';
 import { ShopPage } from './pages/tabs/ShopPage';
-import { initTelegramMiniApp } from './lib/telegram';
+import {
+  initTelegramMiniApp,
+  subscribeTelegramBackButton,
+} from './lib/telegram';
 
 function RootLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   useEffect(() => {
     initTelegramMiniApp();
   }, []);
+
+  useEffect(() => {
+    return subscribeTelegramBackButton(
+      location.pathname !== '/',
+      () => navigate(-1)
+    );
+  }, [location.pathname, navigate]);
 
   return <Outlet />;
 }

@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/AuthContext';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, telegramAuthError } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -30,6 +30,12 @@ export function LoginPage() {
   return (
     <section className="auth-page">
       <form className="auth-card" onSubmit={onSubmit}>
+        {telegramAuthError ? (
+          <p className="auth-error">
+            Telegram authorization failed: {telegramAuthError}
+          </p>
+        ) : null}
+
         <h1 className="auth-title">Sign in</h1>
 
         <input

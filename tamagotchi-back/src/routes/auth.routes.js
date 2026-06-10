@@ -1,9 +1,129 @@
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const { validateTelegramInitData } = require('../services/telegram-auth.service');
+
+function ensureUserStateAsync(ensureUserState, userId) {
+  return new Promise((resolve, reject) => {
+    ensureUserState(userId, (err) => (err ? reject(err) : resolve()));
+  });
+}
+
+function toPublicUser(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    created_at: user.created_at,
+    telegram_id: user.telegram_id,
+    telegram_username: user.telegram_username,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    language_code: user.language_code,
+    photo_url: user.photo_url,
+  };
+}
 
 function registerAuthRoutes(app, deps) {
-  const { db, jwtSecret, authenticateToken, game } = deps;
+  const {
+    db,
+    jwtSecret,
+    telegramBotToken,
+    telegramAuthMaxAgeSeconds,
+    authenticateToken,
+    game,
+  } = deps;
   const { ensureUserState } = game;
+
+  app.post('/api/auth/telegram', async (req, res) => {
+    if (!telegramBotToken) {
+      return res.status(503).json({ error: 'Telegram authentication is not configured' });
+    }
+
+    try {
+      const telegram = validateTelegramInitData(req.body?.initData, telegramBotToken, {
+        maxAgeSeconds: telegramAuthMaxAgeSeconds,
+      });
+
+      let result = await db.query(
+        `SELECT id, username, email, created_at, telegram_id, telegram_username,
+                first_name, last_name, language_code, photo_url
+         FROM users
+         WHERE telegram_id = ?`,
+        [telegram.user.id]
+      );
+      let user = result.rows[0];
+
+      if (user) {
+        result = await db.query(
+          `UPDATE users
+           SET telegram_username = ?,
+               first_name = ?,
+               last_name = ?,
+               language_code = ?,
+               photo_url = ?
+           WHERE telegram_id = ?
+           RETURNING id, username, email, created_at, telegram_id,
+                     telegram_username, first_name, last_name, language_code, photo_url`,
+          [
+            telegram.user.username,
+            telegram.user.firstName,
+            telegram.user.lastName,
+            telegram.user.languageCode,
+            telegram.user.photoUrl,
+            telegram.user.id,
+          ]
+        );
+        user = result.rows[0];
+      } else {
+        const suffix = crypto.randomBytes(4).toString('hex');
+        const username = `tg_${telegram.user.id}_${suffix}`;
+        const email = `tg_${telegram.user.id}_${suffix}@telegram.invalid`;
+        const password = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+
+        result = await db.query(
+          `INSERT INTO users (
+             username, email, password, telegram_id, telegram_username,
+             first_name, last_name, language_code, photo_url
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (telegram_id) DO UPDATE SET
+             telegram_username = EXCLUDED.telegram_username,
+             first_name = EXCLUDED.first_name,
+             last_name = EXCLUDED.last_name,
+             language_code = EXCLUDED.language_code,
+             photo_url = EXCLUDED.photo_url
+           RETURNING id, username, email, created_at, telegram_id,
+                     telegram_username, first_name, last_name, language_code, photo_url`,
+          [
+            username,
+            email,
+            password,
+            telegram.user.id,
+            telegram.user.username,
+            telegram.user.firstName,
+            telegram.user.lastName,
+            telegram.user.languageCode,
+            telegram.user.photoUrl,
+          ]
+        );
+        user = result.rows[0];
+      }
+
+      await ensureUserStateAsync(ensureUserState, user.id);
+      const token = jwt.sign({ id: user.id, username: user.username }, jwtSecret, {
+        expiresIn: '7d',
+      });
+
+      return res.json({ code: 200, user: toPublicUser(user), token });
+    } catch (err) {
+      if (err.code === 'TELEGRAM_AUTH_INVALID') {
+        return res.status(401).json({ error: err.message });
+      }
+
+      console.error('Telegram authentication failed:', err.message);
+      return res.status(500).json({ error: 'Failed to authenticate with Telegram' });
+    }
+  });
 
   app.post('/api/auth/register', (req, res) => {
     const { username, email, password, confirmPassword } = req.body;
@@ -100,7 +220,8 @@ function registerAuthRoutes(app, deps) {
 
   app.get('/api/auth/me', authenticateToken, (req, res) => {
     db.get(
-      `SELECT id, username, email, created_at
+      `SELECT id, username, email, created_at, telegram_id, telegram_username,
+              first_name, last_name, language_code, photo_url
        FROM users
        WHERE id = ?`,
       [req.user.id],

@@ -8,6 +8,8 @@ const {
   ENABLE_DEV_ROUTES,
   JWT_SECRET,
   CORS_ALLOWED_ORIGINS,
+  TELEGRAM_BOT_TOKEN,
+  TELEGRAM_AUTH_MAX_AGE_SECONDS,
   // TON_NETWORK,
   // TON_MARKET_RECEIVER,
   // TON_MARKET_ENABLED,
@@ -59,6 +61,8 @@ const avatarService = createAvatarService(db);
 const deps = {
   db,
   jwtSecret: JWT_SECRET,
+  telegramBotToken: TELEGRAM_BOT_TOKEN,
+  telegramAuthMaxAgeSeconds: TELEGRAM_AUTH_MAX_AGE_SECONDS,
   authenticateToken,
   requireDevRoute,
   game,

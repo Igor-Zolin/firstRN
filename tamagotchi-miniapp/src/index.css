@@ -1,9 +1,9 @@
 :root {
-  --bg: #0a0a0f;
-  --surface: #12121a;
-  --card: #16161f;
+  --bg: var(--tg-theme-bg-color, #0a0a0f);
+  --surface: var(--tg-theme-secondary-bg-color, #12121a);
+  --card: var(--tg-theme-section-bg-color, #16161f);
   --card-border: rgba(0, 212, 255, 0.25);
-  --cyan: #00d4ff;
+  --cyan: var(--tg-theme-button-color, #00d4ff);
   --cyan-dim: rgba(0, 212, 255, 0.6);
   --purple: #a855f7;
   --purple-dim: rgba(168, 85, 247, 0.5);
@@ -12,8 +12,12 @@
   --xp: #2be98a;
   --energy: #22d3ee;
   --beanz: #f33f32;
-  --text: #e2e8f0;
-  --text-muted: #94a3b8;
+  --text: var(--tg-theme-text-color, #e2e8f0);
+  --text-muted: var(--tg-theme-hint-color, #94a3b8);
+  --miniapp-safe-top: max(env(safe-area-inset-top), var(--tg-content-safe-area-inset-top, 0px));
+  --miniapp-safe-right: max(env(safe-area-inset-right), var(--tg-content-safe-area-inset-right, 0px));
+  --miniapp-safe-bottom: max(env(safe-area-inset-bottom), var(--tg-content-safe-area-inset-bottom, 0px));
+  --miniapp-safe-left: max(env(safe-area-inset-left), var(--tg-content-safe-area-inset-left, 0px));
 }
 
 * {
@@ -25,6 +29,7 @@ body,
 #root {
   width: 100%;
   min-height: 100%;
+  min-height: var(--tg-viewport-stable-height, 100dvh);
 }
 
 body {
@@ -40,10 +45,14 @@ input {
 }
 
 .auth-page {
-  min-height: 100vh;
+  min-height: var(--tg-viewport-stable-height, 100dvh);
   display: grid;
   place-items: center;
-  padding: 16px;
+  padding:
+    calc(16px + var(--miniapp-safe-top))
+    calc(16px + var(--miniapp-safe-right))
+    calc(16px + var(--miniapp-safe-bottom))
+    calc(16px + var(--miniapp-safe-left));
   background: var(--bg);
 }
 
@@ -109,9 +118,12 @@ input {
 }
 
 .page-shell {
-  min-height: 100vh;
+  min-height: var(--tg-viewport-stable-height, 100dvh);
   background: var(--bg);
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-bottom: calc(72px + var(--miniapp-safe-bottom));
+  padding-left: var(--miniapp-safe-left);
+  padding-right: var(--miniapp-safe-right);
+  padding-top: var(--miniapp-safe-top);
 }
 
 .tabs-page-content {
@@ -127,7 +139,9 @@ input {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   background: #0d0d14;
   border-top: 1px solid var(--card-border);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-right: var(--miniapp-safe-right);
+  padding-bottom: var(--miniapp-safe-bottom);
+  padding-left: var(--miniapp-safe-left);
   z-index: 30;
 }
 
@@ -160,7 +174,7 @@ input {
 }
 
 .screen {
-  min-height: 100vh;
+  min-height: var(--tg-viewport-stable-height, 100dvh);
   background: var(--bg);
   padding: 16px;
 }

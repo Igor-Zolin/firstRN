@@ -10,6 +10,11 @@ const CORS_ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || '')
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean);
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_AUTH_MAX_AGE_SECONDS = Math.max(
+  60,
+  Number(process.env.TELEGRAM_AUTH_MAX_AGE_SECONDS || 86400)
+);
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const DATABASE_SSL = process.env.DATABASE_SSL === 'true';
 const DATABASE_SSL_REJECT_UNAUTHORIZED =
@@ -29,6 +34,8 @@ module.exports = {
   ENABLE_DEV_ROUTES,
   JWT_SECRET,
   CORS_ALLOWED_ORIGINS,
+  TELEGRAM_BOT_TOKEN,
+  TELEGRAM_AUTH_MAX_AGE_SECONDS,
   DATABASE_URL,
   DATABASE_SSL,
   DATABASE_SSL_REJECT_UNAUTHORIZED,

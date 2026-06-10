@@ -29,6 +29,8 @@ Copy `.env.example` to `.env` and set at least:
 PORT=3000
 JWT_SECRET=replace_with_a_long_random_secret
 DATABASE_URL=postgresql://tamagotchi:tamagotchi@localhost:5432/tamagotchi
+TELEGRAM_BOT_TOKEN=123456789:token-from-botfather
+TELEGRAM_AUTH_MAX_AGE_SECONDS=86400
 DATABASE_SSL=false
 ```
 
@@ -118,7 +120,7 @@ npm run db:import-items
 - Set `CORS_ALLOWED_ORIGINS` to the deployed Mini App and web origins.
 - Keep dev routes disabled in production.
 - Run the API behind HTTPS.
-- Add Telegram `initData` signature validation before replacing username/password login with Telegram authentication.
+- Keep `TELEGRAM_BOT_TOKEN` only on the backend and rotate it if it is exposed.
 
 ## Main API groups
 
@@ -129,3 +131,7 @@ npm run db:import-items
 - `/api/inventory/*` and `/api/equip/*` - inventory and equipped items
 - `/api/snapshot/*` - aggregated client snapshots
 - `/api/heartbeat` - API and database readiness
+
+`POST /api/auth/telegram` accepts raw Telegram `initData`, validates its HMAC
+signature and age, creates or updates the linked user, then returns the same JWT
+used by the rest of the API.

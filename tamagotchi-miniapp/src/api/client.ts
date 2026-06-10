@@ -16,11 +16,16 @@ const TOKEN_KEY = 'miniapp_auth_token';
 
 export function getApiBase() {
   const fromEnv = import.meta.env.VITE_API_BASE_URL as string | undefined;
-  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim().replace(/\/+$/, '');
 
   if (typeof window !== 'undefined' && window.location) {
     const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:3000`;
+    const isLocal = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(
+      hostname
+    );
+    if (isLocal) return `${protocol}//${hostname}:3000`;
+
+    return window.location.origin;
   }
 
   return 'http://localhost:3000';
@@ -128,6 +133,17 @@ export async function register(payload: {
     body: payload,
   })) as AuthResponse;
   if (data?.token) setToken(data.token);
+  return data;
+}
+
+export async function loginWithTelegram(initData: string) {
+  const data = (await request('/api/auth/telegram', {
+    method: 'POST',
+    body: { initData },
+  })) as AuthResponse;
+
+  if (!data?.token) throw new Error('Telegram login did not return a token');
+  setToken(data.token);
   return data;
 }
 

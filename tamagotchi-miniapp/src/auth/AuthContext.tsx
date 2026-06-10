@@ -1,6 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { clearToken, login as apiLogin, me as apiMe, register as apiRegister } from '../api/client';
+import {
+  clearToken,
+  login as apiLogin,
+  loginWithTelegram,
+  me as apiMe,
+  register as apiRegister,
+} from '../api/client';
+import { getTelegramInitData } from '../lib/telegram';
 import type { User } from '../types';
 
 type RegisterPayload = {
@@ -14,6 +21,7 @@ type AuthContextValue = {
   user: User | null;
   isAuthed: boolean;
   bootLoading: boolean;
+  telegramAuthError: string;
   login: (username: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   refreshMe: () => Promise<User>;
@@ -25,17 +33,30 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [bootLoading, setBootLoading] = useState(true);
+  const [telegramAuthError, setTelegramAuthError] = useState('');
 
   useEffect(() => {
     let active = true;
 
     const run = async () => {
       try {
+        const initData = getTelegramInitData();
+        if (initData) {
+          await loginWithTelegram(initData);
+        }
+
         const currentUser = await apiMe();
         if (active) setUser(currentUser);
-      } catch {
+      } catch (error) {
         clearToken();
-        if (active) setUser(null);
+        if (active) {
+          setUser(null);
+          if (getTelegramInitData()) {
+            setTelegramAuthError(
+              error instanceof Error ? error.message : 'Telegram login failed'
+            );
+          }
+        }
       } finally {
         if (active) setBootLoading(false);
       }
@@ -53,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       isAuthed: Boolean(user),
       bootLoading,
+      telegramAuthError,
       async login(username: string, password: string) {
         await apiLogin(username, password);
         const currentUser = await apiMe();
@@ -73,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
       },
     }),
-    [bootLoading, user]
+    [bootLoading, telegramAuthError, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
