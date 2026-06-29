@@ -45,7 +45,24 @@ Use `DATABASE_SSL_REJECT_UNAUTHORIZED=false` only when the provider explicitly r
 
 ## Local start
 
-Start PostgreSQL with Docker:
+On Windows, install and start the project-local portable PostgreSQL:
+
+```bash
+npm run db:local:setup
+```
+
+It is stored under the repository's ignored `.local` directory. Useful commands:
+
+```bash
+npm run db:local:start
+npm run db:local:stop
+npm run db:local:status
+npm run db:local:remove
+```
+
+`db:local:remove` stops PostgreSQL and deletes its binaries and database files.
+
+Alternatively, start PostgreSQL with Docker:
 
 ```bash
 docker compose up -d postgres

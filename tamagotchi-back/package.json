@@ -7,6 +7,11 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "node --test",
+    "db:local:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/postgres-local.ps1 setup",
+    "db:local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/postgres-local.ps1 start",
+    "db:local:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/postgres-local.ps1 stop",
+    "db:local:status": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/postgres-local.ps1 status",
+    "db:local:remove": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/postgres-local.ps1 remove",
     "db:init": "node tools/init-db.js",
     "db:import-items": "node tools/import-items.js",
     "db:migrate:sqlite": "node tools/migrate-sqlite-to-postgres.js"
